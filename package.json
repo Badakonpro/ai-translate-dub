@@ -1,0 +1,66 @@
+{
+  "name": "ai-translate-dub",
+  "version": "1.0.0",
+  "description": "AI 翻译配音 - 视频语音提取、转录、翻译、字幕封装",
+  "main": "main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir --mac --arm64",
+    "dist": "electron-builder --mac --arm64",
+    "dist:dmg": "./build_dmg.sh"
+  },
+  "devDependencies": {
+    "electron": "^36.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.local.ai-translate-dub",
+    "productName": "AI翻译配音",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "pipeline",
+        "to": "pipeline"
+      },
+      {
+        "from": "app.py",
+        "to": "app.py"
+      },
+      {
+        "from": "desktop_app.py",
+        "to": "desktop_app.py"
+      },
+      {
+        "from": "config.example.yaml",
+        "to": "config.example.yaml"
+      },
+      {
+        "from": "requirements.txt",
+        "to": "requirements.txt"
+      }
+    ],
+    "asar": true,
+    "afterPack": "./after-pack.js",
+    "mac": {
+      "category": "public.app-category.utilities",
+      "identity": null,
+      "target": [
+        {
+          "target": "dir",
+          "arch": ["arm64"]
+        }
+      ],
+      "sign": false,
+      "notarize": false
+    }
+  }
+}

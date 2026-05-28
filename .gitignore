@@ -1,0 +1,26 @@
+outputs/
+__pycache__/
+*.pyc
+config.yaml
+.env
+*.wav
+*.mkv
+*.srt
+.DS_Store
+.claude/
+.venv/
+.venv-build/
+build/
+dist/
+*.spec.bak
+
+# Electron
+node_modules/
+dist-electron/
+*.dmg
+*.zip
+!dist/AI翻译配音/
+
+# Temp
+_test_hello.py
+_test_hello.spec

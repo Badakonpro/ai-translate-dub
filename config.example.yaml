@@ -1,0 +1,32 @@
+# Video Translation & Subtitling Tool — 配置模板
+# 复制此文件为 config.yaml 并填入你的配置
+
+# DeepSeek API 配置
+deepseek:
+  api_key: "sk-your-deepseek-api-key"   # 在 https://platform.deepseek.com 获取
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+
+# Ollama 本地模型配置
+ollama:
+  host: "http://localhost:11434"
+  model: "qwen3:latest"                 # 运行前先 ollama pull qwen3
+
+# 默认设置
+defaults:
+  whisper_model: "small"                # tiny / base / small / medium / large
+  source_lang: "auto"                   # 源语言，auto 为自动检测
+  target_lang: "Chinese"                # 目标语言
+  translation_backend: "ollama"         # deepseek 或 ollama
+
+# 翻译任务并行配置
+translation:
+  context_enabled: false                # 是否在逐条翻译前生成全局翻译上下文
+  parallel_enabled: false               # 默认关闭，需要时在界面启用
+  parallel_workers: 3                   # 并行路数，界面可调 2-8
+
+# 应用配置
+app:
+  server_name: "127.0.0.1"
+  server_port: 7860
+  output_dir: "outputs"
