@@ -1,7 +1,7 @@
 {
   "name": "ai-translate-dub",
   "version": "1.0.0",
-  "description": "AI 翻译配音 - 视频语音提取、转录、翻译、字幕封装",
+  "description": "macOS video transcription and subtitle translation app powered by Whisper, Ollama, and DeepSeek",
   "main": "main.js",
   "author": "",
   "license": "MIT",
