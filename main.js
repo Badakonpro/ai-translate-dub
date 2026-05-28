@@ -124,12 +124,20 @@ function getVenvDir() {
   return path.join(app.getPath("userData"), "venv");
 }
 
-function updateLoadingStatus(win, msg) {
+/** Build a simple ASCII progress bar, e.g. "[████░░░░░░]" */
+function buildBar(current, total, width) {
+  const filled = Math.round((current / Math.max(total, 1)) * width);
+  return "[" + "█".repeat(filled) + "░".repeat(width - filled) + "]";
+}
+
+function updateLoadingStatus(win, msg, detail) {
   if (!win || win.isDestroyed()) return;
   try {
-    win.webContents.executeJavaScript(
-      `(function(){var el=document.getElementById('load-status');if(el)el.innerText=${JSON.stringify(msg)};})()`
-    );
+    const js = `(function(){
+      var s=document.getElementById('load-status'); if(s && ${JSON.stringify(msg)} !== undefined) s.innerText=${JSON.stringify(msg ?? "")};
+      var d=document.getElementById('load-detail'); if(d && ${JSON.stringify(detail)} !== undefined) d.innerText=${JSON.stringify(detail ?? "")};
+    })()`;
+    win.webContents.executeJavaScript(js);
   } catch (_) {}
 }
 
@@ -146,6 +154,35 @@ function runCmd(command, args, opts = {}) {
     });
     proc.on("error", reject);
     proc.on("exit", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr.slice(-2000) || `exit code ${code}`));
+    });
+  });
+}
+
+/**
+ * Like runCmd but calls onLine(line) for every non-empty stdout line.
+ * stderr is still logged to console only.
+ */
+function runCmdWithProgress(command, args, onLine, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], ...opts });
+    let buf = "";
+    proc.stdout.on("data", (d) => {
+      buf += d.toString();
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) { if (line.trim()) onLine(line.trim()); }
+    });
+    let stderr = "";
+    proc.stderr.on("data", (d) => {
+      const line = d.toString().trim();
+      if (line) console.log(`[setup] ${line}`);
+      stderr += d.toString();
+    });
+    proc.on("error", reject);
+    proc.on("exit", (code) => {
+      if (buf.trim()) onLine(buf.trim());
       if (code === 0) resolve();
       else reject(new Error(stderr.slice(-2000) || `exit code ${code}`));
     });
@@ -181,8 +218,40 @@ async function ensureDeps(basePythonCmd, resPath, win) {
 
   if (!fs.existsSync(markerFile)) {
     console.log(`Installing Python deps (hash: ${hash})…`);
-    updateLoadingStatus(win, "正在安装 Python 依赖（首次运行约需 2–5 分钟）…");
-    await runCmd(venvPip, ["install", "--quiet", "-r", reqFile]);
+
+    // Count non-comment, non-blank lines in requirements.txt as total package estimate
+    const reqLines = reqContent.toString().split("\n")
+      .filter(l => l.trim() && !l.trim().startsWith("#"));
+    const totalPkgs = reqLines.length;
+    let collectedCount = 0;
+
+    updateLoadingStatus(win, `正在安装 Python 依赖（0 / ${totalPkgs}）`, "首次运行约需 2–5 分钟，请耐心等待…");
+
+    await runCmdWithProgress(
+      venvPip,
+      ["install", "--progress-bar", "off", "-r", reqFile],
+      (line) => {
+        console.log(`[setup] ${line}`);
+        if (line.startsWith("Collecting ")) {
+          collectedCount++;
+          const pkgName = line.replace("Collecting ", "").split(" ")[0];
+          const bar = buildBar(collectedCount, totalPkgs, 16);
+          updateLoadingStatus(
+            win,
+            `正在安装依赖  ${bar}  ${collectedCount} / ${totalPkgs}`,
+            pkgName
+          );
+        } else if (line.startsWith("Downloading ")) {
+          const pkgName = line.replace("Downloading ", "").split("-")[0];
+          updateLoadingStatus(win, undefined, `下载 ${pkgName}…`);
+        } else if (line.startsWith("Installing collected")) {
+          updateLoadingStatus(win, "正在写入安装文件…", "");
+        } else if (line.startsWith("Successfully installed")) {
+          updateLoadingStatus(win, "✅ 依赖安装完成！", "");
+        }
+      }
+    );
+
     fs.writeFileSync(markerFile, new Date().toISOString());
     console.log("Dependencies installed.");
   } else {
@@ -315,7 +384,7 @@ function stopPythonBackend() {
 // ── Window Management ───────────────────────────────────────────────────────
 
 async function createWindow() {
-  const loadingHtml = `<html><head><meta charset="utf-8"></head><body style="background:#1e1e2e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#cdd6f4"><div style="text-align:center;max-width:520px;padding:0 20px"><div style="font-size:2em;margin-bottom:16px">AI 翻译配音</div><div id="load-status" style="color:#a6adc8">正在启动…</div><div style="margin-top:12px;color:#585b70;font-size:0.82em">首次运行需安装 Python 依赖，约需 2–5 分钟</div></div></body></html>`;
+  const loadingHtml = `<html><head><meta charset="utf-8"></head><body style="background:#1e1e2e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:'SF Mono','Consolas',monospace;color:#cdd6f4"><div style="text-align:center;max-width:560px;padding:0 20px"><div style="font-size:2em;margin-bottom:24px;font-family:sans-serif">AI 翻译配音</div><div id="load-status" style="color:#89b4fa;font-size:0.95em;letter-spacing:.01em;min-height:1.4em">正在启动…</div><div id="load-detail" style="margin-top:8px;color:#6c7086;font-size:0.78em;min-height:1.2em"></div></div></body></html>`;
 
   mainWindow = new BrowserWindow({
     width: 1200,
