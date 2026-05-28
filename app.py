@@ -136,6 +136,15 @@ _I18N = {
             "- 视频文件：`{video}`\n- 字幕文件：`{srt}`\n\n"
             "建议使用 VLC、IINA、Infuse 等支持 MKV 软字幕的播放器打开。"
         ),
+        "transcribe_done": "转录完成，共 {} 段字幕。",
+        "acc_context": "全局翻译上下文",
+        "acc_deepseek": "DeepSeek API 设置",
+        "acc_ollama": "Ollama 设置",
+        "acc_parallel": "并行翻译",
+        "acc_subtitle": "字幕样式",
+        "acc_runtime": "运行环境",
+        "acc_ctx_output": "本次翻译上下文",
+        "acc_playback": "播放说明",
     },
     "en": {
         "app_title": "# AI Translate & Dub",
@@ -219,6 +228,15 @@ _I18N = {
             "- Video: `{video}`\n- Subtitles: `{srt}`\n\n"
             "Use VLC, IINA, or Infuse for soft-subtitle MKV playback."
         ),
+        "transcribe_done": "Transcription complete: {} segments.",
+        "acc_context": "Global Translation Context",
+        "acc_deepseek": "DeepSeek API Settings",
+        "acc_ollama": "Ollama Settings",
+        "acc_parallel": "Parallel Translation",
+        "acc_subtitle": "Subtitle Style",
+        "acc_runtime": "Runtime Environment",
+        "acc_ctx_output": "Translation Context",
+        "acc_playback": "Playback Notes",
     },
 }
 
@@ -268,20 +286,23 @@ def process_video(
     burn_subs,
     sub_font_size,
     sub_position,
+    lang="中文",
     progress=gr.Progress(),
 ):
     """
     Main processing pipeline. Called when the user clicks 'Process'.
     Returns: (status_message, mkv_output_path, srt_output_path, translation_context)
     """
-    if video_path is None:
-        return "请先上传一个视频文件。", None, None, ""
+    t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
 
-    # ── Input validation ────────────────────────────────────────────────────
+    if video_path is None:
+        return t["no_video"], None, None, ""
+
+    # ── Input validation ────────────────────────────────────────────
     if whisper_model not in _ALLOWED_WHISPER_MODELS:
-        return f"无效的 Whisper 模型：{whisper_model}", None, None, ""
+        return t["invalid_whisper"] + whisper_model, None, None, ""
     if translation_backend not in _ALLOWED_BACKENDS:
-        return f"无效的翻译后端：{translation_backend}", None, None, ""
+        return t["invalid_backend"] + translation_backend, None, None, ""
     translation_workers = _coerce_translation_workers(translation_workers)
     use_translation_context = bool(use_translation_context)
     parallel_translation = bool(parallel_translation)
@@ -300,12 +321,12 @@ def process_video(
 
     try:
         # Step 1: Extract audio
-        progress(0.05, desc="1/5 正在提取音频...")
+        progress(0.05, desc=t["step1"])
         audio_path = extract_audio(video_path, str(OUTPUT_DIR))
-        progress(0.15, desc="音频提取完成。")
+        progress(0.15, desc=t["step1_done"])
 
         # Step 2: Transcribe with Whisper
-        progress(0.20, desc=f"2/5 正在加载 Whisper {whisper_model} 模型...")
+        progress(0.20, desc=t["step2"].format(whisper_model))
 
         def transcription_progress(pct, msg):
             progress(0.20 + pct * 0.30, desc=f"2/5 {msg}")
@@ -318,15 +339,15 @@ def process_video(
         )
 
         if not segments:
-            return "没有检测到可转录的人声。", None, None, ""
+            return t["no_speech"], None, None, ""
 
-        progress(0.50, desc=f"转录完成，共 {len(segments)} 段字幕。")
+        progress(0.50, desc=t["transcribe_done"].format(len(segments)))
 
         # Override config with UI values
         translator = _build_translator(translation_backend, deepseek_api_key, ollama_host, ollama_model, ollama_auto_pull, deepseek_model=deepseek_model)
 
         if use_translation_context:
-            progress(0.50, desc="3/5 正在生成全局翻译上下文...")
+            progress(0.50, desc=t["step3_ctx"])
 
             def context_progress(pct, msg):
                 progress(0.50 + pct * 0.05, desc=f"3/5 {msg}")
@@ -338,10 +359,10 @@ def process_video(
                 video_title=context_title,
                 progress_callback=context_progress,
             )
-            progress(0.55, desc="全局翻译上下文已生成。")
+            progress(0.55, desc=t["step3_ctx_done"])
 
         # Step 3: Translate
-        progress(0.55, desc=f"3/5 正在使用 {translation_backend} 翻译为 {target_lang}...")
+        progress(0.55, desc=t["step3_trans"].format(target_lang, translation_backend))
 
         def translation_progress(pct, msg):
             progress(0.55 + pct * 0.25, desc=f"3/5 {msg}")
@@ -356,18 +377,21 @@ def process_video(
             translation_context=translation_context,
         )
 
-        translation_mode = f"{translation_workers} 路并行" if parallel_translation and translation_workers > 1 else "单路"
-        progress(0.80, desc=f"翻译完成，共 {len(translated)} 段字幕（{translation_mode}）。")
+        if parallel_translation and translation_workers > 1:
+            translation_mode = t["trans_parallel"].format(translation_workers)
+        else:
+            translation_mode = t["trans_single"]
+        progress(0.80, desc=t["trans_done"].format(len(translated), translation_mode))
 
         # Step 4: Generate SRT
-        progress(0.85, desc="4/5 正在生成 SRT 字幕文件...")
+        progress(0.85, desc=t["step4"])
         safe_target = "".join(ch for ch in target_lang if ch.isalnum() or ch in ("-", "_")) or "translated"
         srt_path = str(OUTPUT_DIR / f"{video_stem}_{safe_target}_{run_id}.srt")
         generate_srt(translated, srt_path)
 
         # Step 5: Embed subtitles
         if burn_subs:
-            progress(0.90, desc="5/5 正在硬烧录字幕（需重新编码，速度较慢）...")
+            progress(0.90, desc=t["step5_burn"])
             output_video_path = str(OUTPUT_DIR / f"{video_stem}_{safe_target}_{run_id}_hardburned.mp4")
             pos_internal = _SUBTITLE_POSITION_MAP.get(sub_position, "bottom-center")
             burn_subtitles(
@@ -378,16 +402,15 @@ def process_video(
                 position=pos_internal,
                 progress_callback=lambda p, m: progress(0.90 + p * 0.10, desc=f"5/5 {m}"),
             )
-            progress(1.0, desc="完成。")
-            summary = (
-                f"处理完成，字幕已硬烧录入视频画面（{len(translated)} 段）。\n\n"
-                f"- 视频文件：`{Path(output_video_path).name}`\n"
-                f"- 字幕文件：`{Path(srt_path).name}`\n\n"
-                "字幕已永久烧录入画面，可在任意播放器直接显示。"
+            progress(1.0, desc=t["complete"])
+            summary = t["summary_burn"].format(
+                n=len(translated),
+                video=Path(output_video_path).name,
+                srt=Path(srt_path).name,
             )
             return summary, output_video_path, srt_path, translation_context
         else:
-            progress(0.90, desc="5/5 正在封装 MKV 软字幕...")
+            progress(0.90, desc=t["step5_mux"])
             mkv_path = str(OUTPUT_DIR / f"{video_stem}_{safe_target}_{run_id}_subtitled.mkv")
             mux_subtitles(
                 video_path,
@@ -396,12 +419,11 @@ def process_video(
                 subtitle_title=target_lang,
                 progress_callback=lambda p, m: progress(0.90 + p * 0.10, desc=f"5/5 {m}"),
             )
-            progress(1.0, desc="完成。")
-            summary = (
-                f"处理完成，共封装 {len(translated)} 段字幕。\n\n"
-                f"- 视频文件：`{Path(mkv_path).name}`\n"
-                f"- 字幕文件：`{Path(srt_path).name}`\n\n"
-                "建议使用 VLC、IINA、Infuse 等支持 MKV 软字幕的播放器打开。"
+            progress(1.0, desc=t["complete"])
+            summary = t["summary_mux"].format(
+                n=len(translated),
+                video=Path(mkv_path).name,
+                srt=Path(srt_path).name,
             )
             return summary, mkv_path, srt_path, translation_context
 
@@ -550,6 +572,14 @@ def build_ui():
             gr.update(label=t["ctx_output_label"]),
             gr.update(value=t["playback_md"]),
             gr.update(value=t["initial_hint"]),
+            gr.update(label=t["acc_context"]),
+            gr.update(label=t["acc_deepseek"]),
+            gr.update(label=t["acc_ollama"]),
+            gr.update(label=t["acc_parallel"]),
+            gr.update(label=t["acc_subtitle"]),
+            gr.update(label=t["acc_runtime"]),
+            gr.update(label=t["acc_ctx_output"]),
+            gr.update(label=t["acc_playback"]),
         )
 
     theme = gr.themes.Soft(
@@ -603,7 +633,7 @@ def build_ui():
                     label="目标语言",
                     info="选择常用语言，或直接输入自定义语言名称。",
                 )
-                with gr.Accordion("全局翻译上下文 · Context", open=False):
+                with gr.Accordion(_I18N["zh"]["acc_context"], open=False) as acc_context:
                     video_title = gr.Textbox(
                         value="",
                         label="视频标题/主题",
@@ -620,7 +650,7 @@ def build_ui():
                     label="翻译后端",
                 )
 
-                with gr.Accordion("DeepSeek API 设置 · Settings", open=False):
+                with gr.Accordion(_I18N["zh"]["acc_deepseek"], open=False) as acc_deepseek:
                     deepseek_api_key = gr.Textbox(
                         label="API Key",
                         type="password",
@@ -638,7 +668,7 @@ def build_ui():
                         allow_custom_value=True,
                     )
 
-                with gr.Accordion("Ollama 设置 · Settings", open=False):
+                with gr.Accordion(_I18N["zh"]["acc_ollama"], open=False) as acc_ollama:
                     ollama_host = gr.Textbox(
                         label="Ollama Host",
                         value=os.environ.get("OLLAMA_HOST", ollama_config.get("host", "http://localhost:11434")),
@@ -656,7 +686,7 @@ def build_ui():
                     pull_ollama_btn = gr.Button("拉取模型")
                     ollama_model_status = gr.Markdown("")
 
-                with gr.Accordion("并行翻译 · Parallel", open=False):
+                with gr.Accordion(_I18N["zh"]["acc_parallel"], open=False) as acc_parallel:
                     parallel_translation = gr.Checkbox(
                         label="启用并行翻译",
                         value=parallel_enabled_default,
@@ -674,7 +704,7 @@ def build_ui():
                 save_btn = gr.Button("💾 保存设置", variant="secondary")
                 save_status = gr.Markdown("")
 
-                with gr.Accordion("字幕样式 · Subtitle Style", open=False):
+                with gr.Accordion(_I18N["zh"]["acc_subtitle"], open=False) as acc_subtitle:
                     burn_subs = gr.Checkbox(
                         label="硬烧录字幕（永久嵌入视频画面）",
                         value=False,
@@ -703,17 +733,17 @@ def build_ui():
                     mkv_output = gr.File(label="下载输出视频", visible=True)
                     srt_output = gr.File(label="下载字幕文件（SRT）", visible=True)
 
-                with gr.Accordion("运行环境 · Runtime", open=False):
+                with gr.Accordion(_I18N["zh"]["acc_runtime"], open=False) as acc_runtime:
                     gr.Markdown(format_runtime_report())
 
-                with gr.Accordion("本次翻译上下文 · Translation Context", open=False):
+                with gr.Accordion(_I18N["zh"]["acc_ctx_output"], open=False) as acc_ctx_output:
                     context_output = gr.Textbox(
                         label="全局上下文",
                         lines=8,
                         interactive=False,
                     )
 
-                with gr.Accordion("播放说明 · Playback", open=False):
+                with gr.Accordion(_I18N["zh"]["acc_playback"], open=False) as acc_playback:
                     playback_md_comp = gr.Markdown(
                         "- VLC / IINA：打开 MKV 后在字幕菜单中开启或切换字幕轨道\n"
                         "- QuickTime：对 MKV 软字幕支持不完整，不建议使用\n"
@@ -796,6 +826,8 @@ def build_ui():
                 burn_subs, sub_font_size, sub_position,
                 process_btn, sec_result_md, mkv_output, srt_output, context_output,
                 playback_md_comp, status_text,
+                acc_context, acc_deepseek, acc_ollama, acc_parallel,
+                acc_subtitle, acc_runtime, acc_ctx_output, acc_playback,
             ],
         )
 
