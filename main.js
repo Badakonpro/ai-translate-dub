@@ -385,14 +385,14 @@ function stopPythonBackend() {
 // ── Window Management ───────────────────────────────────────────────────────
 
 async function createWindow() {
-  const loadingHtml = `<html><head><meta charset="utf-8"></head><body style="background:#1e1e2e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:'SF Mono','Consolas',monospace;color:#cdd6f4"><div style="text-align:center;max-width:560px;padding:0 20px"><div style="font-size:2em;margin-bottom:24px;font-family:sans-serif">AI 翻译配音</div><div id="load-status" style="color:#89b4fa;font-size:0.95em;letter-spacing:.01em;min-height:1.4em">正在启动…</div><div id="load-detail" style="margin-top:8px;color:#6c7086;font-size:0.78em;min-height:1.2em"></div></div></body></html>`;
+  const loadingHtml = `<html><head><meta charset="utf-8"></head><body style="background:#1e1e2e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:'SF Mono','Consolas',monospace;color:#cdd6f4"><div style="text-align:center;max-width:560px;padding:0 20px"><div style="font-size:2em;margin-bottom:24px;font-family:sans-serif">VoxOver</div><div id="load-status" style="color:#89b4fa;font-size:0.95em;letter-spacing:.01em;min-height:1.4em">Starting…</div><div id="load-detail" style="margin-top:8px;color:#6c7086;font-size:0.78em;min-height:1.2em"></div></div></body></html>`;
 
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    title: "AI 翻译配音",
+    title: "VoxOver",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,

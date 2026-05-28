@@ -49,7 +49,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="AI翻译配音",
+    name="VoxOver",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -68,11 +68,11 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name="AI翻译配音",
+    name="VoxOver",
 )
 app = BUNDLE(
     coll,
-    name="AI翻译配音.app",
+    name="VoxOver.app",
     icon=None,
     bundle_identifier="com.local.ai-translate-dub",
     info_plist={
