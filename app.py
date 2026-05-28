@@ -106,6 +106,36 @@ _I18N = {
         "fetch_ok": "✅ 拉取成功，共 {} 个模型。",
         "fetch_fail_no_key": "❌ 请先填写 DeepSeek API Key。",
         "fetch_fail": "❌ 拉取失败：",
+        "initial_hint": "上传视频并点击 **▶ 开始处理**。",
+        "pull_ok": "模型 `{}` 已拉取完成。",
+        "pull_fail": "拉取失败：",
+        "no_video": "请先上传一个视频文件。",
+        "no_speech": "没有检测到可转录的人声。",
+        "invalid_whisper": "无效的 Whisper 模型：",
+        "invalid_backend": "无效的翻译后端：",
+        "step1": "1/5 正在提取音频…",
+        "step1_done": "音频提取完成。",
+        "step2": "2/5 正在加载 Whisper {} 模型…",
+        "step3_ctx": "3/5 正在生成全局翻译上下文…",
+        "step3_ctx_done": "全局翻译上下文已生成。",
+        "step3_trans": "3/5 正在使用 {} 翻译为 {}…",
+        "trans_parallel": "{} 路并行",
+        "trans_single": "单路",
+        "trans_done": "翻译完成，共 {} 段字幕（{}）。",
+        "step4": "4/5 正在生成 SRT 字幕文件…",
+        "step5_burn": "5/5 正在硬烧录字幕（需重新编码，速度较慢）…",
+        "step5_mux": "5/5 正在封装 MKV 软字幕…",
+        "complete": "完成。",
+        "summary_burn": (
+            "处理完成，字幕已硬烧录入视频画面（{n} 段）。\n\n"
+            "- 视频文件：`{video}`\n- 字幕文件：`{srt}`\n\n"
+            "字幕已永久烧录入画面，可在任意播放器直接显示。"
+        ),
+        "summary_mux": (
+            "处理完成，共封装 {n} 段字幕。\n\n"
+            "- 视频文件：`{video}`\n- 字幕文件：`{srt}`\n\n"
+            "建议使用 VLC、IINA、Infuse 等支持 MKV 软字幕的播放器打开。"
+        ),
     },
     "en": {
         "app_title": "# AI Translate & Dub",
@@ -159,6 +189,36 @@ _I18N = {
         "fetch_ok": "✅ Fetched {} models.",
         "fetch_fail_no_key": "❌ Please enter your DeepSeek API Key first.",
         "fetch_fail": "❌ Failed to fetch: ",
+        "initial_hint": "Upload a video and click **▶ Process Video**.",
+        "pull_ok": "Model `{}` pulled successfully.",
+        "pull_fail": "Pull failed: ",
+        "no_video": "Please upload a video file first.",
+        "no_speech": "No speech detected for transcription.",
+        "invalid_whisper": "Invalid Whisper model: ",
+        "invalid_backend": "Invalid translation backend: ",
+        "step1": "1/5 Extracting audio…",
+        "step1_done": "Audio extracted.",
+        "step2": "2/5 Loading Whisper {} model…",
+        "step3_ctx": "3/5 Generating global translation context…",
+        "step3_ctx_done": "Translation context generated.",
+        "step3_trans": "3/5 Translating to {} using {}…",
+        "trans_parallel": "{}-thread parallel",
+        "trans_single": "single-thread",
+        "trans_done": "Translation complete: {} segments ({}).",
+        "step4": "4/5 Generating SRT subtitle file…",
+        "step5_burn": "5/5 Hard-burning subtitles (re-encoding, slower)…",
+        "step5_mux": "5/5 Muxing MKV soft subtitles…",
+        "complete": "Done.",
+        "summary_burn": (
+            "Done — subtitles hard-burned into video ({n} segments).\n\n"
+            "- Video: `{video}`\n- Subtitles: `{srt}`\n\n"
+            "Subtitles are permanently embedded; playable in any video player."
+        ),
+        "summary_mux": (
+            "Done — {n} subtitle segments muxed.\n\n"
+            "- Video: `{video}`\n- Subtitles: `{srt}`\n\n"
+            "Use VLC, IINA, or Infuse for soft-subtitle MKV playback."
+        ),
     },
 }
 
@@ -425,8 +485,9 @@ def fetch_deepseek_models(api_key, lang="中文", progress=gr.Progress()):
         return gr.update(), t["fetch_fail"] + str(exc)
 
 
-def pull_ollama_model(ollama_host, ollama_model, progress=gr.Progress()):
+def pull_ollama_model(ollama_host, ollama_model, lang="中文", progress=gr.Progress()):
     from pipeline.translator import OllamaTranslator
+    t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
 
     host = ollama_host or os.environ.get("OLLAMA_HOST", "http://localhost:11434")
     model = ollama_model or os.environ.get("OLLAMA_MODEL", "qwen3:latest")
@@ -435,9 +496,9 @@ def pull_ollama_model(ollama_host, ollama_model, progress=gr.Progress()):
     try:
         translator.pull_model(progress_callback=lambda pct, msg: progress(pct, desc=msg))
     except Exception as exc:
-        return f"拉取失败：{exc}"
+        return t["pull_fail"] + str(exc)
 
-    return f"模型 `{model}` 已拉取完成。"
+    return t["pull_ok"].format(model)
 
 
 # ── Gradio UI ────────────────────────────────────────────────────────────────
@@ -488,6 +549,7 @@ def build_ui():
             gr.update(label=t["srt_out_label"]),
             gr.update(label=t["ctx_output_label"]),
             gr.update(value=t["playback_md"]),
+            gr.update(value=t["initial_hint"]),
         )
 
     theme = gr.themes.Soft(
@@ -679,12 +741,13 @@ def build_ui():
                 burn_subs,
                 sub_font_size,
                 sub_position,
+                lang_radio,
             ],
             outputs=[status_text, mkv_output, srt_output, context_output],
         )
         pull_ollama_btn.click(
             fn=pull_ollama_model,
-            inputs=[ollama_host, ollama_model],
+            inputs=[ollama_host, ollama_model, lang_radio],
             outputs=[ollama_model_status],
         )
         save_btn.click(
@@ -732,7 +795,7 @@ def build_ui():
                 parallel_translation, translation_workers, save_btn,
                 burn_subs, sub_font_size, sub_position,
                 process_btn, sec_result_md, mkv_output, srt_output, context_output,
-                playback_md_comp,
+                playback_md_comp, status_text,
             ],
         )
 
