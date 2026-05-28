@@ -66,7 +66,7 @@ _I18N = {
         "source_lang_info": "选择 auto 可自动检测。",
         "sec_translate": "### 3. 翻译设置",
         "target_lang_label": "目标语言",
-        "target_lang_info": "选择常用语言，或直接输入自定义语言名称。",
+        "target_lang_info": "从列表中选择目标语言。",
         "video_title_label": "视频标题/主题",
         "video_title_placeholder": "可选；留空时使用上传文件名作为主题线索",
         "use_context_label": "翻译前生成全局上下文",
@@ -119,7 +119,7 @@ _I18N = {
         "source_lang_info": "Choose 'auto' for automatic detection.",
         "sec_translate": "### 3. Translation Settings",
         "target_lang_label": "Target Language",
-        "target_lang_info": "Select a language or type a custom name.",
+        "target_lang_info": "Select a target language from the list.",
         "video_title_label": "Video Title / Topic",
         "video_title_placeholder": "Optional; leave empty to use the filename as context",
         "use_context_label": "Generate global translation context",
@@ -540,7 +540,6 @@ def build_ui():
                     value=defaults.get("target_lang", "Chinese"),
                     label="目标语言",
                     info="选择常用语言，或直接输入自定义语言名称。",
-                    allow_custom_value=True,
                 )
                 with gr.Accordion("全局翻译上下文 · Context", open=False):
                     video_title = gr.Textbox(
