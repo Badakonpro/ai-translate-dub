@@ -256,6 +256,7 @@ async function ensureDeps(basePythonCmd, resPath, win) {
     console.log("Dependencies installed.");
   } else {
     console.log("Dependencies already up-to-date.");
+    updateLoadingStatus(win, "✅ 依赖已安装，跳过安装步骤", "");
   }
 
   return venvPython;
