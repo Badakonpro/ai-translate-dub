@@ -314,6 +314,170 @@ class DeepSeekTranslator(BaseTranslator):
         return translated
 
 
+class OpenAITranslator(BaseTranslator):
+    """OpenAI-compatible translator (also works with any OpenAI-compatible endpoint)."""
+
+    _FALLBACK_MODELS = ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini", "gpt-4-turbo"]
+
+    def __init__(self, api_key: str = None, model: str = "gpt-4o", base_url: str = "https://api.openai.com/v1"):
+        config = _load_config()
+        openai_config = config.get("openai", {})
+        api_key = api_key or env_or_config("OPENAI_API_KEY", openai_config.get("api_key", ""))
+        model = model or openai_config.get("model", "gpt-4o")
+        base_url = base_url or openai_config.get("base_url", "https://api.openai.com/v1")
+        if not api_key or api_key.strip() in {"your-openai-api-key", "sk-your-openai-api-key"} or api_key.startswith("sk-your-"):
+            raise ValueError("OpenAI API Key 未配置。请在界面输入 API Key，或在 config.yaml / OPENAI_API_KEY 中配置。")
+        _validate_http_url(base_url, "OpenAI base_url")
+        self.api_key = api_key
+        self.model = model
+        self.base_url = base_url
+
+    def list_models(self) -> list:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+            models = client.models.list()
+            ids = sorted(m.id for m in models.data if m.id)
+            return ids if ids else self._FALLBACK_MODELS
+        except Exception as exc:
+            logger.warning("OpenAI list_models failed: %s", exc)
+            raise RuntimeError(_redact(str(exc), self.api_key)) from None
+
+    def build_translation_context(self, segments, source_lang="auto", target_lang="Chinese",
+                                   video_title="", progress_callback=None):
+        from openai import OpenAI
+        if progress_callback:
+            progress_callback(0.0, "正在生成全局翻译上下文...")
+        client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+        prompt = _build_translation_context_prompt(segments, source_lang, target_lang, video_title)
+        try:
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": f"You prepare compact translation context for subtitle translation into {target_lang}. Output only reusable context notes, not a translation."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.2,
+                max_tokens=700,
+            )
+        except Exception as exc:
+            raise RuntimeError(_redact(str(exc), self.api_key)) from None
+        context = _normalize_translation_context(response.choices[0].message.content)
+        if progress_callback:
+            progress_callback(1.0, "全局翻译上下文已生成。")
+        return context
+
+    def translate(self, segments, source_lang="auto", target_lang="Chinese",
+                  progress_callback=None, parallel_enabled=False, max_workers=1, translation_context=""):
+        from openai import OpenAI
+        worker_count = _resolve_worker_count(parallel_enabled, max_workers, len(segments))
+
+        def translate_one(i, seg):
+            client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+            context_before = segments[i - 1]["text"] if i > 0 else ""
+            context_after = segments[i + 1]["text"] if i < len(segments) - 1 else ""
+            prompt = _build_translation_prompt(
+                seg["text"], context_before, context_after, source_lang, target_lang,
+                translation_context=translation_context,
+            )
+            try:
+                response = client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": f"You are a professional subtitle translator. Translate the given text to {target_lang}. Use the provided global context consistently. Output ONLY the translated text, nothing else. Keep it concise and natural for subtitles."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.3,
+                    max_tokens=512,
+                )
+            except Exception as exc:
+                raise RuntimeError(_redact(str(exc), self.api_key)) from None
+            return {"start": seg["start"], "end": seg["end"], "text": response.choices[0].message.content.strip()}
+
+        if worker_count > 1:
+            return _translate_segments_in_parallel(segments, worker_count, translate_one,
+                                                    progress_callback=progress_callback)
+        translated = []
+        for i, seg in enumerate(segments):
+            if progress_callback:
+                progress_callback(i / len(segments), f"Translating segment {i + 1}/{len(segments)}...")
+            translated.append(translate_one(i, seg))
+        return translated
+
+
+class AnthropicTranslator(BaseTranslator):
+    """Anthropic Claude translator."""
+
+    FALLBACK_MODELS = ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-3-5"]
+
+    def __init__(self, api_key: str = None, model: str = "claude-sonnet-4-5"):
+        config = _load_config()
+        anthropic_config = config.get("anthropic", {})
+        api_key = api_key or env_or_config("ANTHROPIC_API_KEY", anthropic_config.get("api_key", ""))
+        model = model or anthropic_config.get("model", "claude-sonnet-4-5")
+        if not api_key or api_key.strip() in {"your-anthropic-api-key", "sk-ant-your-api-key"}:
+            raise ValueError("Anthropic API Key 未配置。请在界面输入 API Key，或在 config.yaml / ANTHROPIC_API_KEY 中配置。")
+        self.api_key = api_key
+        self.model = model
+
+    def build_translation_context(self, segments, source_lang="auto", target_lang="Chinese",
+                                   video_title="", progress_callback=None):
+        import anthropic
+        if progress_callback:
+            progress_callback(0.0, "正在生成全局翻译上下文...")
+        client = anthropic.Anthropic(api_key=self.api_key)
+        prompt = _build_translation_context_prompt(segments, source_lang, target_lang, video_title)
+        try:
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=700,
+                system=f"You prepare compact translation context for subtitle translation into {target_lang}. Output only reusable context notes, not a translation.",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+            )
+        except Exception as exc:
+            raise RuntimeError(_redact(str(exc), self.api_key)) from None
+        context = _normalize_translation_context(response.content[0].text)
+        if progress_callback:
+            progress_callback(1.0, "全局翻译上下文已生成。")
+        return context
+
+    def translate(self, segments, source_lang="auto", target_lang="Chinese",
+                  progress_callback=None, parallel_enabled=False, max_workers=1, translation_context=""):
+        import anthropic
+        worker_count = _resolve_worker_count(parallel_enabled, max_workers, len(segments))
+
+        def translate_one(i, seg):
+            client = anthropic.Anthropic(api_key=self.api_key)
+            context_before = segments[i - 1]["text"] if i > 0 else ""
+            context_after = segments[i + 1]["text"] if i < len(segments) - 1 else ""
+            prompt = _build_translation_prompt(
+                seg["text"], context_before, context_after, source_lang, target_lang,
+                translation_context=translation_context,
+            )
+            try:
+                response = client.messages.create(
+                    model=self.model,
+                    max_tokens=512,
+                    system=f"You are a professional subtitle translator. Translate the given text to {target_lang}. Use the provided global context consistently. Output ONLY the translated text, nothing else. Keep it concise and natural for subtitles.",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.3,
+                )
+            except Exception as exc:
+                raise RuntimeError(_redact(str(exc), self.api_key)) from None
+            return {"start": seg["start"], "end": seg["end"], "text": response.content[0].text.strip()}
+
+        if worker_count > 1:
+            return _translate_segments_in_parallel(segments, worker_count, translate_one,
+                                                    progress_callback=progress_callback)
+        translated = []
+        for i, seg in enumerate(segments):
+            if progress_callback:
+                progress_callback(i / len(segments), f"Translating segment {i + 1}/{len(segments)}...")
+            translated.append(translate_one(i, seg))
+        return translated
+
+
 class OllamaTranslator(BaseTranslator):
     def __init__(self, host: str = None, model: str = None, auto_pull_model: bool = False):
         config = _load_config()
@@ -547,6 +711,19 @@ def create_translator(backend: str) -> BaseTranslator:
             model=deepseek_config.get("model", "deepseek-chat"),
             base_url=deepseek_config.get("base_url", "https://api.deepseek.com"),
         )
+    elif backend == "openai":
+        openai_config = config.get("openai", {})
+        return OpenAITranslator(
+            api_key=openai_config.get("api_key", ""),
+            model=openai_config.get("model", "gpt-4o"),
+            base_url=openai_config.get("base_url", "https://api.openai.com/v1"),
+        )
+    elif backend == "anthropic":
+        anthropic_config = config.get("anthropic", {})
+        return AnthropicTranslator(
+            api_key=anthropic_config.get("api_key", ""),
+            model=anthropic_config.get("model", "claude-sonnet-4-5"),
+        )
     elif backend == "ollama":
         ollama_config = config.get("ollama", {})
         return OllamaTranslator(
@@ -554,4 +731,4 @@ def create_translator(backend: str) -> BaseTranslator:
             model=ollama_config.get("model", "qwen3:latest"),
         )
     else:
-        raise ValueError(f"Unknown translation backend: {backend}. Use 'deepseek' or 'ollama'.")
+        raise ValueError(f"Unknown translation backend: {backend}. Use 'deepseek', 'openai', 'anthropic', or 'ollama'.")

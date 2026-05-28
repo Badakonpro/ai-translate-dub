@@ -22,7 +22,7 @@ CONFIG = load_config()
 OUTPUT_DIR = get_output_dir(CONFIG)
 
 _ALLOWED_WHISPER_MODELS = {"tiny", "base", "small", "medium", "large"}
-_ALLOWED_BACKENDS = {"ollama", "deepseek"}
+_ALLOWED_BACKENDS = {"ollama", "deepseek", "openai", "anthropic"}
 _MAX_TRANSLATION_WORKERS = 8
 _MAX_VIDEO_TITLE_CHARS = 300
 
@@ -145,6 +145,15 @@ _I18N = {
         "acc_runtime": "运行环境",
         "acc_ctx_output": "本次翻译上下文",
         "acc_playback": "播放说明",
+        "acc_openai": "OpenAI 设置",
+        "acc_anthropic": "Anthropic 设置",
+        "openai_api_key_label": "OpenAI API Key",
+        "openai_base_url_label": "Base URL（留空使用官方默认）",
+        "openai_model_label": "OpenAI 模型",
+        "fetch_openai_btn": "🔄 拉取模型列表",
+        "anthropic_api_key_label": "Anthropic API Key",
+        "anthropic_model_label": "Anthropic 模型",
+        "fetch_openai_fail_no_key": "❌ 请先填写 OpenAI API Key。",
     },
     "en": {
         "app_title": "# AI Translate & Dub",
@@ -237,6 +246,15 @@ _I18N = {
         "acc_runtime": "Runtime Environment",
         "acc_ctx_output": "Translation Context",
         "acc_playback": "Playback Notes",
+        "acc_openai": "OpenAI Settings",
+        "acc_anthropic": "Anthropic Settings",
+        "openai_api_key_label": "OpenAI API Key",
+        "openai_base_url_label": "Base URL (leave empty for official default)",
+        "openai_model_label": "OpenAI Model",
+        "fetch_openai_btn": "🔄 Fetch Model List",
+        "anthropic_api_key_label": "Anthropic API Key",
+        "anthropic_model_label": "Anthropic Model",
+        "fetch_openai_fail_no_key": "❌ Please enter your OpenAI API Key first.",
     },
 }
 
@@ -280,6 +298,11 @@ def process_video(
     ollama_host,
     ollama_model,
     ollama_auto_pull,
+    openai_api_key,
+    openai_model,
+    openai_base_url,
+    anthropic_api_key,
+    anthropic_model,
     use_translation_context,
     parallel_translation,
     translation_workers,
@@ -344,7 +367,12 @@ def process_video(
         progress(0.50, desc=t["transcribe_done"].format(len(segments)))
 
         # Override config with UI values
-        translator = _build_translator(translation_backend, deepseek_api_key, ollama_host, ollama_model, ollama_auto_pull, deepseek_model=deepseek_model)
+        translator = _build_translator(
+            translation_backend, deepseek_api_key, ollama_host, ollama_model, ollama_auto_pull,
+            deepseek_model=deepseek_model,
+            openai_api_key=openai_api_key, openai_model=openai_model, openai_base_url=openai_base_url,
+            anthropic_api_key=anthropic_api_key, anthropic_model=anthropic_model,
+        )
 
         if use_translation_context:
             progress(0.50, desc=t["step3_ctx"])
@@ -440,9 +468,10 @@ def process_video(
 
 
 def save_settings(whisper_model_val, source_lang_val, target_lang_val,
-                  translation_backend_val, deepseek_api_key_val,
-                  deepseek_model_val,
+                  translation_backend_val, deepseek_api_key_val, deepseek_model_val,
                   ollama_host_val, ollama_model_val,
+                  openai_api_key_val, openai_model_val, openai_base_url_val,
+                  anthropic_api_key_val, anthropic_model_val,
                   use_translation_context_val,
                   parallel_translation_val, translation_workers_val,
                   lang="中文"):
@@ -458,6 +487,15 @@ def save_settings(whisper_model_val, source_lang_val, target_lang_val,
         "deepseek": {
             "api_key": deepseek_api_key_val or "",
             "model": deepseek_model_val or "deepseek-chat",
+        },
+        "openai": {
+            "api_key": openai_api_key_val or "",
+            "model": openai_model_val or "gpt-4o",
+            "base_url": openai_base_url_val or "https://api.openai.com/v1",
+        },
+        "anthropic": {
+            "api_key": anthropic_api_key_val or "",
+            "model": anthropic_model_val or "claude-sonnet-4-5",
         },
         "ollama": {
             "host": ollama_host_val or "http://localhost:11434",
@@ -476,13 +514,26 @@ def save_settings(whisper_model_val, source_lang_val, target_lang_val,
         return t["save_fail"] + str(e)
 
 
-def _build_translator(backend, api_key, ollama_host, ollama_model, ollama_auto_pull=False, deepseek_model=None):
+def _build_translator(backend, deepseek_api_key, ollama_host, ollama_model, ollama_auto_pull=False,
+                      deepseek_model=None, openai_api_key=None, openai_model=None, openai_base_url=None,
+                      anthropic_api_key=None, anthropic_model=None):
     """Build translator instance from UI parameters."""
     if backend == "deepseek":
         from pipeline.translator import DeepSeekTranslator
-        key = api_key or os.environ.get("DEEPSEEK_API_KEY", "")
+        key = deepseek_api_key or os.environ.get("DEEPSEEK_API_KEY", "")
         model = deepseek_model or os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
         return DeepSeekTranslator(api_key=key, model=model)
+    elif backend == "openai":
+        from pipeline.translator import OpenAITranslator
+        key = openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        model = openai_model or os.environ.get("OPENAI_MODEL", "gpt-4o")
+        base_url = (openai_base_url or "").strip() or "https://api.openai.com/v1"
+        return OpenAITranslator(api_key=key, model=model, base_url=base_url)
+    elif backend == "anthropic":
+        from pipeline.translator import AnthropicTranslator
+        key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        model = anthropic_model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5")
+        return AnthropicTranslator(api_key=key, model=model)
     elif backend == "ollama":
         from pipeline.translator import OllamaTranslator
         host = ollama_host or os.environ.get("OLLAMA_HOST", "http://localhost:11434")
@@ -503,6 +554,22 @@ def fetch_deepseek_models(api_key, lang="中文", progress=gr.Progress()):
         translator = DeepSeekTranslator(api_key=key)
         models = translator.list_models()
         return gr.update(choices=models, value=models[0] if models else "deepseek-chat"), t["fetch_ok"].format(len(models))
+    except Exception as exc:
+        return gr.update(), t["fetch_fail"] + str(exc)
+
+
+def fetch_openai_models(api_key, base_url, lang="中文", progress=gr.Progress()):
+    """Pull model list from OpenAI API and return updated Dropdown choices."""
+    from pipeline.translator import OpenAITranslator
+    t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
+    key = api_key or os.environ.get("OPENAI_API_KEY", "")
+    if not key or key.strip().startswith("sk-your-"):
+        return gr.update(), t["fetch_openai_fail_no_key"]
+    try:
+        resolved_url = (base_url or "").strip() or "https://api.openai.com/v1"
+        translator = OpenAITranslator(api_key=key, base_url=resolved_url)
+        models = translator.list_models()
+        return gr.update(choices=models, value=models[0] if models else "gpt-4o"), t["fetch_ok"].format(len(models))
     except Exception as exc:
         return gr.update(), t["fetch_fail"] + str(exc)
 
@@ -530,6 +597,8 @@ def build_ui():
     config = load_config()
     defaults = config.get("defaults", {})
     deepseek_config = config.get("deepseek", {})
+    openai_config = config.get("openai", {})
+    anthropic_config = config.get("anthropic", {})
     ollama_config = config.get("ollama", {})
     translation_config = config.get("translation", {})
     context_enabled_default = bool(translation_config.get("context_enabled", False))
@@ -574,6 +643,8 @@ def build_ui():
             gr.update(value=t["initial_hint"]),
             gr.update(label=t["acc_context"]),
             gr.update(label=t["acc_deepseek"]),
+            gr.update(label=t["acc_openai"]),
+            gr.update(label=t["acc_anthropic"]),
             gr.update(label=t["acc_ollama"]),
             gr.update(label=t["acc_parallel"]),
             gr.update(label=t["acc_subtitle"]),
@@ -645,7 +716,7 @@ def build_ui():
                         info="开启后会在逐条翻译前额外调用一次当前翻译模型。",
                     )
                 translation_backend = gr.Radio(
-                    choices=["ollama", "deepseek"],
+                    choices=["ollama", "deepseek", "openai", "anthropic"],
                     value=defaults.get("translation_backend", "ollama"),
                     label="翻译后端",
                 )
@@ -666,6 +737,43 @@ def build_ui():
                         label="DeepSeek 模型",
                         info="点击「拉取模型列表」可获取最新可用模型。",
                         allow_custom_value=True,
+                    )
+
+                with gr.Accordion(_I18N["zh"]["acc_openai"], open=False) as acc_openai:
+                    openai_api_key = gr.Textbox(
+                        label=_I18N["zh"]["openai_api_key_label"],
+                        type="password",
+                        placeholder="sk-...",
+                        value=os.environ.get("OPENAI_API_KEY", openai_config.get("api_key", "")),
+                    )
+                    openai_base_url = gr.Textbox(
+                        label=_I18N["zh"]["openai_base_url_label"],
+                        value=openai_config.get("base_url", "https://api.openai.com/v1"),
+                        placeholder="https://api.openai.com/v1",
+                    )
+                    with gr.Row():
+                        fetch_openai_btn = gr.Button("🔄 拉取模型列表", size="sm")
+                        openai_model_status = gr.Markdown("")
+                    from pipeline.translator import OpenAITranslator
+                    openai_model = gr.Dropdown(
+                        choices=OpenAITranslator._FALLBACK_MODELS,
+                        value=openai_config.get("model", "gpt-4o"),
+                        label=_I18N["zh"]["openai_model_label"],
+                        allow_custom_value=True,
+                    )
+
+                with gr.Accordion(_I18N["zh"]["acc_anthropic"], open=False) as acc_anthropic:
+                    anthropic_api_key = gr.Textbox(
+                        label=_I18N["zh"]["anthropic_api_key_label"],
+                        type="password",
+                        placeholder="sk-ant-...",
+                        value=os.environ.get("ANTHROPIC_API_KEY", anthropic_config.get("api_key", "")),
+                    )
+                    from pipeline.translator import AnthropicTranslator
+                    anthropic_model = gr.Dropdown(
+                        choices=AnthropicTranslator._FALLBACK_MODELS,
+                        value=anthropic_config.get("model", "claude-sonnet-4-5"),
+                        label=_I18N["zh"]["anthropic_model_label"],
                     )
 
                 with gr.Accordion(_I18N["zh"]["acc_ollama"], open=False) as acc_ollama:
@@ -765,6 +873,11 @@ def build_ui():
                 ollama_host,
                 ollama_model,
                 ollama_auto_pull,
+                openai_api_key,
+                openai_model,
+                openai_base_url,
+                anthropic_api_key,
+                anthropic_model,
                 use_translation_context,
                 parallel_translation,
                 translation_workers,
@@ -791,6 +904,11 @@ def build_ui():
                 deepseek_model,
                 ollama_host,
                 ollama_model,
+                openai_api_key,
+                openai_model,
+                openai_base_url,
+                anthropic_api_key,
+                anthropic_model,
                 use_translation_context,
                 parallel_translation,
                 translation_workers,
@@ -802,6 +920,11 @@ def build_ui():
             fn=fetch_deepseek_models,
             inputs=[deepseek_api_key, lang_radio],
             outputs=[deepseek_model, deepseek_model_status],
+        )
+        fetch_openai_btn.click(
+            fn=fetch_openai_models,
+            inputs=[openai_api_key, openai_base_url, lang_radio],
+            outputs=[openai_model, openai_model_status],
         )
         burn_subs.change(
             fn=lambda v: (gr.update(visible=v), gr.update(visible=v)),
@@ -826,7 +949,7 @@ def build_ui():
                 burn_subs, sub_font_size, sub_position,
                 process_btn, sec_result_md, mkv_output, srt_output, context_output,
                 playback_md_comp, status_text,
-                acc_context, acc_deepseek, acc_ollama, acc_parallel,
+                acc_context, acc_deepseek, acc_openai, acc_anthropic, acc_ollama, acc_parallel,
                 acc_subtitle, acc_runtime, acc_ctx_output, acc_playback,
             ],
         )

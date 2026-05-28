@@ -7,6 +7,17 @@ deepseek:
   base_url: "https://api.deepseek.com"
   model: "deepseek-chat"
 
+# OpenAI API 配置
+openai:
+  api_key: "sk-your-openai-api-key"     # 在 https://platform.openai.com 获取
+  base_url: "https://api.openai.com/v1" # 可改为兼容接口地址
+  model: "gpt-4o"
+
+# Anthropic API 配置
+anthropic:
+  api_key: "sk-ant-your-api-key"        # 在 https://console.anthropic.com 获取
+  model: "claude-sonnet-4-5"
+
 # Ollama 本地模型配置
 ollama:
   host: "http://localhost:11434"
