@@ -26,15 +26,140 @@ _ALLOWED_BACKENDS = {"ollama", "deepseek"}
 _MAX_TRANSLATION_WORKERS = 8
 _MAX_VIDEO_TITLE_CHARS = 300
 
-# Maps Chinese UI labels → internal position keys used by burn_subtitles()
+# Maps UI labels (Chinese or English) → internal position keys used by burn_subtitles()
 _SUBTITLE_POSITION_MAP = {
-    "底部居中":  "bottom-center",
-    "底部靠左":  "bottom-left",
-    "底部靠右":  "bottom-right",
-    "顶部居中":  "top-center",
-    "顶部靠左":  "top-left",
-    "顶部靠右":  "top-right",
-    "画面中央":  "middle-center",
+    "底部居中": "bottom-center",  "Bottom Center": "bottom-center",
+    "底部靠左": "bottom-left",    "Bottom Left":   "bottom-left",
+    "底部靠右": "bottom-right",   "Bottom Right":  "bottom-right",
+    "顶部居中": "top-center",     "Top Center":    "top-center",
+    "顶部靠左": "top-left",       "Top Left":      "top-left",
+    "顶部靠右": "top-right",      "Top Right":     "top-right",
+    "画面中央": "middle-center",  "Middle Center": "middle-center",
+}
+
+# Ordered list of target languages shown in the Dropdown
+_TARGET_LANGS = [
+    "Chinese", "English", "Japanese", "Korean",
+    "French", "German", "Spanish", "Russian", "Portuguese",
+    "Italian", "Arabic", "Hindi", "Thai", "Vietnamese",
+    "Turkish", "Dutch", "Polish", "Indonesian",
+    "Swedish", "Danish", "Norwegian", "Finnish",
+    "Czech", "Romanian", "Hungarian", "Greek",
+    "Hebrew", "Ukrainian", "Malay", "Tagalog",
+    "Bengali", "Swahili", "Catalan", "Croatian",
+    "Slovak", "Bulgarian", "Serbian", "Lithuanian",
+    "Latvian", "Estonian", "Slovenian",
+]
+
+_LANG_MAP = {"中文": "zh", "English": "en"}
+
+_I18N = {
+    "zh": {
+        "app_title": "# AI 翻译配音",
+        "app_desc": "上传视频后自动提取语音、转录、翻译，并输出带可开关软字幕的 MKV 文件。",
+        "sec_upload": "### 1. 上传视频",
+        "video_label": "源视频",
+        "sec_asr": "### 2. 语音识别",
+        "whisper_label": "Whisper 模型",
+        "whisper_info": "模型越大越准但越慢。正式使用建议 small / medium。",
+        "source_lang_label": "源语言",
+        "source_lang_info": "选择 auto 可自动检测。",
+        "sec_translate": "### 3. 翻译设置",
+        "target_lang_label": "目标语言",
+        "target_lang_info": "选择常用语言，或直接输入自定义语言名称。",
+        "video_title_label": "视频标题/主题",
+        "video_title_placeholder": "可选；留空时使用上传文件名作为主题线索",
+        "use_context_label": "翻译前生成全局上下文",
+        "use_context_info": "开启后会在逐条翻译前额外调用一次当前翻译模型。",
+        "backend_label": "翻译后端",
+        "api_key_label": "API Key",
+        "api_key_placeholder": "sk-...",
+        "fetch_models_btn": "🔄 拉取模型列表",
+        "deepseek_model_label": "DeepSeek 模型",
+        "deepseek_model_info": "点击「拉取模型列表」可获取最新可用模型。",
+        "ollama_host_label": "Ollama Host",
+        "ollama_model_label": "Ollama 模型",
+        "ollama_auto_pull_label": "缺失时自动拉取",
+        "pull_ollama_btn": "拉取模型",
+        "parallel_label": "启用并行翻译",
+        "workers_label": "并行路数",
+        "workers_info": "仅在启用并行翻译时生效。",
+        "save_btn": "💾 保存设置",
+        "burn_subs_label": "硬烧录字幕（永久嵌入视频画面）",
+        "burn_subs_info": "启用后字幕直接烧录进视频，无需播放器支持字幕轨道；但需重新编码视频，速度较慢。默认输出 MP4。",
+        "font_size_label": "字幕字号",
+        "position_label": "字幕位置",
+        "position_choices": ["底部居中", "底部靠左", "底部靠右",
+                             "顶部居中", "顶部靠左", "顶部靠右", "画面中央"],
+        "process_btn": "▶ 开始处理",
+        "sec_result": "### 4. 结果",
+        "video_out_label": "下载输出视频",
+        "srt_out_label": "下载字幕文件（SRT）",
+        "ctx_output_label": "全局上下文",
+        "playback_md": (
+            "- VLC / IINA：打开 MKV 后在字幕菜单中开启或切换字幕轨道\n"
+            "- QuickTime：对 MKV 软字幕支持不完整，不建议使用\n"
+            "- SRT 文件也可以在多数播放器里手动加载"
+        ),
+        "save_ok": "✅ 设置已保存，下次启动自动生效。",
+        "save_fail": "❌ 保存失败：",
+        "fetch_ok": "✅ 拉取成功，共 {} 个模型。",
+        "fetch_fail_no_key": "❌ 请先填写 DeepSeek API Key。",
+        "fetch_fail": "❌ 拉取失败：",
+    },
+    "en": {
+        "app_title": "# AI Translate & Dub",
+        "app_desc": "Upload a video to automatically extract audio, transcribe, translate, and output an MKV with switchable subtitles.",
+        "sec_upload": "### 1. Upload Video",
+        "video_label": "Source Video",
+        "sec_asr": "### 2. Speech Recognition",
+        "whisper_label": "Whisper Model",
+        "whisper_info": "Larger models are more accurate but slower. Recommended: small / medium.",
+        "source_lang_label": "Source Language",
+        "source_lang_info": "Choose 'auto' for automatic detection.",
+        "sec_translate": "### 3. Translation Settings",
+        "target_lang_label": "Target Language",
+        "target_lang_info": "Select a language or type a custom name.",
+        "video_title_label": "Video Title / Topic",
+        "video_title_placeholder": "Optional; leave empty to use the filename as context",
+        "use_context_label": "Generate global translation context",
+        "use_context_info": "Makes one extra API call before segment translation to build context.",
+        "backend_label": "Translation Backend",
+        "api_key_label": "API Key",
+        "api_key_placeholder": "sk-...",
+        "fetch_models_btn": "🔄 Fetch Model List",
+        "deepseek_model_label": "DeepSeek Model",
+        "deepseek_model_info": "Click 'Fetch Model List' to get the latest available models.",
+        "ollama_host_label": "Ollama Host",
+        "ollama_model_label": "Ollama Model",
+        "ollama_auto_pull_label": "Auto-pull if missing",
+        "pull_ollama_btn": "Pull Model",
+        "parallel_label": "Enable parallel translation",
+        "workers_label": "Parallel Workers",
+        "workers_info": "Only effective when parallel translation is enabled.",
+        "save_btn": "💾 Save Settings",
+        "burn_subs_label": "Hard-burn subtitles (embed permanently into video)",
+        "burn_subs_info": "Subtitles are burned into the video. No player subtitle support needed, but re-encoding is required (slower). Outputs MP4.",
+        "font_size_label": "Subtitle Font Size",
+        "position_label": "Subtitle Position",
+        "position_choices": ["Bottom Center", "Bottom Left", "Bottom Right",
+                             "Top Center", "Top Left", "Top Right", "Middle Center"],
+        "process_btn": "▶ Process Video",
+        "sec_result": "### 4. Results",
+        "video_out_label": "Download Output Video",
+        "srt_out_label": "Download Subtitle File (SRT)",
+        "ctx_output_label": "Global Context",
+        "playback_md": (
+            "- VLC / IINA: Open MKV, then enable subtitles from the subtitle menu\n"
+            "- QuickTime: Limited MKV soft-subtitle support; not recommended\n"
+            "- You can also load the SRT file manually in most players"
+        ),
+        "save_ok": "✅ Settings saved. Will take effect on next launch.",
+        "save_fail": "❌ Save failed: ",
+        "fetch_ok": "✅ Fetched {} models.",
+        "fetch_fail_no_key": "❌ Please enter your DeepSeek API Key first.",
+        "fetch_fail": "❌ Failed to fetch: ",
+    },
 }
 
 
@@ -237,8 +362,10 @@ def save_settings(whisper_model_val, source_lang_val, target_lang_val,
                   deepseek_model_val,
                   ollama_host_val, ollama_model_val,
                   use_translation_context_val,
-                  parallel_translation_val, translation_workers_val):
+                  parallel_translation_val, translation_workers_val,
+                  lang="中文"):
     """Write current UI values back to config.yaml so they survive restarts."""
+    t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
     updates = {
         "defaults": {
             "whisper_model": whisper_model_val,
@@ -262,9 +389,9 @@ def save_settings(whisper_model_val, source_lang_val, target_lang_val,
     }
     try:
         save_config(updates)
-        return "✅ 设置已保存，下次启动自动生效。"
+        return t["save_ok"]
     except Exception as e:
-        return f"❌ 保存失败：{e}"
+        return t["save_fail"] + str(e)
 
 
 def _build_translator(backend, api_key, ollama_host, ollama_model, ollama_auto_pull=False, deepseek_model=None):
@@ -283,18 +410,19 @@ def _build_translator(backend, api_key, ollama_host, ollama_model, ollama_auto_p
         raise ValueError(f"Unknown backend: {backend}")
 
 
-def fetch_deepseek_models(api_key, progress=gr.Progress()):
+def fetch_deepseek_models(api_key, lang="中文", progress=gr.Progress()):
     """Pull model list from DeepSeek API and return updated Dropdown choices."""
     from pipeline.translator import DeepSeekTranslator
+    t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
     key = api_key or os.environ.get("DEEPSEEK_API_KEY", "")
     if not key or key.strip().startswith("sk-your-"):
-        return gr.update(), "❌ 请先填写 DeepSeek API Key。"
+        return gr.update(), t["fetch_fail_no_key"]
     try:
         translator = DeepSeekTranslator(api_key=key)
         models = translator.list_models()
-        return gr.update(choices=models, value=models[0] if models else "deepseek-chat"), f"✅ 拉取成功，共 {len(models)} 个模型。"
+        return gr.update(choices=models, value=models[0] if models else "deepseek-chat"), t["fetch_ok"].format(len(models))
     except Exception as exc:
-        return gr.update(), f"❌ 拉取失败：{exc}"
+        return gr.update(), t["fetch_fail"] + str(exc)
 
 
 def pull_ollama_model(ollama_host, ollama_model, progress=gr.Progress()):
@@ -325,24 +453,71 @@ def build_ui():
     parallel_enabled_default = bool(translation_config.get("parallel_enabled", False))
     parallel_workers_default = max(2, _coerce_translation_workers(translation_config.get("parallel_workers", 3)))
 
+    def switch_language(lang_label):
+        lang_code = _LANG_MAP.get(lang_label, "zh")
+        t = _I18N.get(lang_code, _I18N["zh"])
+        return (
+            gr.update(value=t["app_title"]),
+            gr.update(value=t["app_desc"]),
+            gr.update(value=t["sec_upload"]),
+            gr.update(label=t["video_label"]),
+            gr.update(value=t["sec_asr"]),
+            gr.update(label=t["whisper_label"], info=t["whisper_info"]),
+            gr.update(label=t["source_lang_label"], info=t["source_lang_info"]),
+            gr.update(value=t["sec_translate"]),
+            gr.update(label=t["target_lang_label"], info=t["target_lang_info"]),
+            gr.update(label=t["video_title_label"], placeholder=t["video_title_placeholder"]),
+            gr.update(label=t["use_context_label"], info=t["use_context_info"]),
+            gr.update(label=t["backend_label"]),
+            gr.update(label=t["api_key_label"], placeholder=t["api_key_placeholder"]),
+            gr.update(value=t["fetch_models_btn"]),
+            gr.update(label=t["deepseek_model_label"], info=t["deepseek_model_info"]),
+            gr.update(label=t["ollama_host_label"]),
+            gr.update(label=t["ollama_model_label"]),
+            gr.update(label=t["ollama_auto_pull_label"]),
+            gr.update(value=t["pull_ollama_btn"]),
+            gr.update(label=t["parallel_label"]),
+            gr.update(label=t["workers_label"], info=t["workers_info"]),
+            gr.update(value=t["save_btn"]),
+            gr.update(label=t["burn_subs_label"], info=t["burn_subs_info"]),
+            gr.update(label=t["font_size_label"]),
+            gr.update(label=t["position_label"], choices=t["position_choices"], value=t["position_choices"][0]),
+            gr.update(value=t["process_btn"]),
+            gr.update(value=t["sec_result"]),
+            gr.update(label=t["video_out_label"]),
+            gr.update(label=t["srt_out_label"]),
+            gr.update(label=t["ctx_output_label"]),
+            gr.update(value=t["playback_md"]),
+        )
+
     theme = gr.themes.Soft(
         primary_hue="blue",
         secondary_hue="slate",
     )
 
-    with gr.Blocks(theme=theme, title="AI 翻译配音") as demo:
-        gr.Markdown("""
-        # AI 翻译配音
-        上传视频后自动提取语音、转录、翻译，并输出带可开关软字幕的 MKV 文件。
-        """)
+    with gr.Blocks(theme=theme, title="AI 翻译配音 · AI Translate & Dub") as demo:
+        # ── Header row with title + language switch ──
+        with gr.Row(equal_height=True):
+            with gr.Column(scale=4):
+                app_title_md = gr.Markdown("# AI 翻译配音")
+            with gr.Column(scale=1, min_width=140):
+                lang_radio = gr.Radio(
+                    choices=["中文", "English"],
+                    value="中文",
+                    show_label=False,
+                    container=False,
+                )
+        app_desc_md = gr.Markdown(
+            "上传视频后自动提取语音、转录、翻译，并输出带可开关软字幕的 MKV 文件。"
+        )
 
         with gr.Row():
             # ── Left Column: Input & Config ──
             with gr.Column(scale=1):
-                gr.Markdown("### 1. 上传视频")
+                sec_upload_md = gr.Markdown("### 1. 上传视频")
                 video_input = gr.Video(label="源视频", sources=["upload"])
 
-                gr.Markdown("### 2. 语音识别")
+                sec_asr_md = gr.Markdown("### 2. 语音识别")
                 whisper_model = gr.Dropdown(
                     choices=["tiny", "base", "small", "medium", "large"],
                     value=defaults.get("whisper_model", "small"),
@@ -359,13 +534,15 @@ def build_ui():
                     info="选择 auto 可自动检测。",
                 )
 
-                gr.Markdown("### 3. 翻译设置")
-                target_lang = gr.Textbox(
+                sec_translate_md = gr.Markdown("### 3. 翻译设置")
+                target_lang = gr.Dropdown(
+                    choices=_TARGET_LANGS,
                     value=defaults.get("target_lang", "Chinese"),
                     label="目标语言",
-                    info="例如 Chinese、English、Japanese。",
+                    info="选择常用语言，或直接输入自定义语言名称。",
+                    allow_custom_value=True,
                 )
-                with gr.Accordion("全局翻译上下文", open=False):
+                with gr.Accordion("全局翻译上下文 · Context", open=False):
                     video_title = gr.Textbox(
                         value="",
                         label="视频标题/主题",
@@ -382,7 +559,7 @@ def build_ui():
                     label="翻译后端",
                 )
 
-                with gr.Accordion("DeepSeek API 设置", open=False):
+                with gr.Accordion("DeepSeek API 设置 · Settings", open=False):
                     deepseek_api_key = gr.Textbox(
                         label="API Key",
                         type="password",
@@ -400,14 +577,14 @@ def build_ui():
                         allow_custom_value=True,
                     )
 
-                with gr.Accordion("Ollama 设置", open=False):
+                with gr.Accordion("Ollama 设置 · Settings", open=False):
                     ollama_host = gr.Textbox(
                         label="Ollama Host",
                         value=os.environ.get("OLLAMA_HOST", ollama_config.get("host", "http://localhost:11434")),
                         placeholder="http://localhost:11434",
                     )
                     ollama_model = gr.Textbox(
-                        label="Ollama Model",
+                        label="Ollama 模型",
                         value=os.environ.get("OLLAMA_MODEL", ollama_config.get("model", "qwen3:latest")),
                         placeholder="qwen3:latest",
                     )
@@ -418,7 +595,7 @@ def build_ui():
                     pull_ollama_btn = gr.Button("拉取模型")
                     ollama_model_status = gr.Markdown("")
 
-                with gr.Accordion("并行翻译", open=False):
+                with gr.Accordion("并行翻译 · Parallel", open=False):
                     parallel_translation = gr.Checkbox(
                         label="启用并行翻译",
                         value=parallel_enabled_default,
@@ -436,7 +613,7 @@ def build_ui():
                 save_btn = gr.Button("💾 保存设置", variant="secondary")
                 save_status = gr.Markdown("")
 
-                with gr.Accordion("字幕样式", open=False):
+                with gr.Accordion("字幕样式 · Subtitle Style", open=False):
                     burn_subs = gr.Checkbox(
                         label="硬烧录字幕（永久嵌入视频画面）",
                         value=False,
@@ -448,40 +625,39 @@ def build_ui():
                         visible=False,
                     )
                     sub_position = gr.Dropdown(
-                        choices=["底部居中", "底部靠左", "底部靠右",
-                                 "顶部居中", "顶部靠左", "顶部靠右", "画面中央"],
-                        value="底部居中",
+                        choices=_I18N["zh"]["position_choices"],
+                        value=_I18N["zh"]["position_choices"][0],
                         label="字幕位置",
                         visible=False,
                     )
 
-                process_btn = gr.Button("开始处理", variant="primary", size="lg")
+                process_btn = gr.Button("▶ 开始处理", variant="primary", size="lg")
 
             # ── Right Column: Output ──
             with gr.Column(scale=1):
-                gr.Markdown("### 4. 结果")
+                sec_result_md = gr.Markdown("### 4. 结果")
                 status_text = gr.Markdown("上传视频并点击 **开始处理**。")
 
                 with gr.Row():
                     mkv_output = gr.File(label="下载输出视频", visible=True)
                     srt_output = gr.File(label="下载字幕文件（SRT）", visible=True)
 
-                with gr.Accordion("运行环境", open=False):
+                with gr.Accordion("运行环境 · Runtime", open=False):
                     gr.Markdown(format_runtime_report())
 
-                with gr.Accordion("本次翻译上下文", open=False):
+                with gr.Accordion("本次翻译上下文 · Translation Context", open=False):
                     context_output = gr.Textbox(
                         label="全局上下文",
                         lines=8,
                         interactive=False,
                     )
 
-                with gr.Accordion("播放说明", open=False):
-                    gr.Markdown("""
-                    - VLC / IINA：打开 MKV 后在字幕菜单中开启或切换字幕轨道
-                    - QuickTime：对 MKV 软字幕支持不完整，不建议使用
-                    - SRT 文件也可以在多数播放器里手动加载
-                    """)
+                with gr.Accordion("播放说明 · Playback", open=False):
+                    playback_md_comp = gr.Markdown(
+                        "- VLC / IINA：打开 MKV 后在字幕菜单中开启或切换字幕轨道\n"
+                        "- QuickTime：对 MKV 软字幕支持不完整，不建议使用\n"
+                        "- SRT 文件也可以在多数播放器里手动加载"
+                    )
 
         # ── Event Binding ──
         process_btn.click(
@@ -526,12 +702,13 @@ def build_ui():
                 use_translation_context,
                 parallel_translation,
                 translation_workers,
+                lang_radio,
             ],
             outputs=[save_status],
         )
         fetch_deepseek_btn.click(
             fn=fetch_deepseek_models,
-            inputs=[deepseek_api_key],
+            inputs=[deepseek_api_key, lang_radio],
             outputs=[deepseek_model, deepseek_model_status],
         )
         burn_subs.change(
@@ -543,6 +720,21 @@ def build_ui():
             fn=lambda v: gr.update(visible=v),
             inputs=[parallel_translation],
             outputs=[translation_workers],
+        )
+        lang_radio.change(
+            fn=switch_language,
+            inputs=[lang_radio],
+            outputs=[
+                app_title_md, app_desc_md, sec_upload_md, video_input,
+                sec_asr_md, whisper_model, source_lang,
+                sec_translate_md, target_lang, video_title, use_translation_context,
+                translation_backend, deepseek_api_key, fetch_deepseek_btn, deepseek_model,
+                ollama_host, ollama_model, ollama_auto_pull, pull_ollama_btn,
+                parallel_translation, translation_workers, save_btn,
+                burn_subs, sub_font_size, sub_position,
+                process_btn, sec_result_md, mkv_output, srt_output, context_output,
+                playback_md_comp,
+            ],
         )
 
     return demo
