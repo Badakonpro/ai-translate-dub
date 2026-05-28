@@ -4,6 +4,7 @@ const { spawn, spawnSync } = require("child_process");
 const http = require("http");
 const net = require("net");
 const fs = require("fs");
+const crypto = require("crypto");
 
 // ── Configuration ──────────────────────────────────────────────────────────
 const GRADIO_HOST = "127.0.0.1";
@@ -117,12 +118,102 @@ function findPythonCommand() {
   return { command: "python3", args: [], label: "python3" };
 }
 
+// ── Dep Management (venv + pip install) ──────────────────────────────────────
+
+function getVenvDir() {
+  return path.join(app.getPath("userData"), "venv");
+}
+
+function updateLoadingStatus(win, msg) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    win.webContents.executeJavaScript(
+      `(function(){var el=document.getElementById('load-status');if(el)el.innerText=${JSON.stringify(msg)};})()`
+    );
+  } catch (_) {}
+}
+
+/** Spawn a command, stream output to console, resolve/reject on exit. */
+function runCmd(command, args, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], ...opts });
+    proc.stdout.on("data", (d) => console.log(`[setup] ${d.toString().trim()}`));
+    let stderr = "";
+    proc.stderr.on("data", (d) => {
+      const line = d.toString().trim();
+      if (line) console.log(`[setup] ${line}`);
+      stderr += d.toString();
+    });
+    proc.on("error", reject);
+    proc.on("exit", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr.slice(-2000) || `exit code ${code}`));
+    });
+  });
+}
+
+/**
+ * Create a venv in userData and pip-install requirements.txt when needed.
+ * A SHA-256 hash of requirements.txt is used as a marker so re-install only
+ * happens when dependencies change.
+ * Returns the venv python3 path, or null if requirements.txt is absent.
+ */
+async function ensureDeps(basePythonCmd, resPath, win) {
+  const reqFile = path.join(resPath, "requirements.txt");
+  if (!fs.existsSync(reqFile)) return null;
+
+  const venvDir    = getVenvDir();
+  const venvPython = path.join(venvDir, "bin", "python3");
+  const venvPip    = path.join(venvDir, "bin", "pip");
+
+  // Create venv if it doesn't exist yet
+  if (!fs.existsSync(venvPython)) {
+    console.log("Creating Python venv at", venvDir);
+    updateLoadingStatus(win, "正在创建 Python 虚拟环境…");
+    await runCmd(basePythonCmd.command, [...basePythonCmd.args, "-m", "venv", venvDir]);
+    console.log("Venv created.");
+  }
+
+  // Only reinstall when requirements.txt content changes
+  const reqContent = fs.readFileSync(reqFile);
+  const hash = crypto.createHash("sha256").update(reqContent).digest("hex").slice(0, 16);
+  const markerFile = path.join(app.getPath("userData"), `deps-${hash}.ok`);
+
+  if (!fs.existsSync(markerFile)) {
+    console.log(`Installing Python deps (hash: ${hash})…`);
+    updateLoadingStatus(win, "正在安装 Python 依赖（首次运行约需 2–5 分钟）…");
+    await runCmd(venvPip, ["install", "--quiet", "-r", reqFile]);
+    fs.writeFileSync(markerFile, new Date().toISOString());
+    console.log("Dependencies installed.");
+  } else {
+    console.log("Dependencies already up-to-date.");
+  }
+
+  return venvPython;
+}
+
 // ── Python Backend ──────────────────────────────────────────────────────────
 
-async function startPythonBackend() {
+async function startPythonBackend(win) {
   const resPath = syncRuntimePath();
-  const pythonCmd = findPythonCommand();
+  const basePythonCmd = findPythonCommand();
+  console.log(`Base Python: ${basePythonCmd.label}`);
+
+  // Ensure venv + pip deps are ready (first run / requirements change only)
+  let pythonCmd;
+  try {
+    const venvPython = await ensureDeps(basePythonCmd, resPath, win);
+    pythonCmd = venvPython
+      ? { command: venvPython, args: [], label: venvPython }
+      : basePythonCmd;
+  } catch (err) {
+    console.error("Dep install failed:", err.message);
+    pythonCmd = basePythonCmd;
+    updateLoadingStatus(win, `⚠️ 依赖安装失败，尝试直接启动…`);
+  }
+
   console.log(`Using Python: ${pythonCmd.label}`);
+  updateLoadingStatus(win, "正在启动后端服务，请稍候…");
 
   const port = await findFreePort(7860);
   console.log(`Starting Gradio on port ${port}`);
@@ -224,8 +315,7 @@ function stopPythonBackend() {
 // ── Window Management ───────────────────────────────────────────────────────
 
 async function createWindow() {
-  const port = await startPythonBackend();
-  const serverUrl = `http://${GRADIO_HOST}:${port}`;
+  const loadingHtml = `<html><head><meta charset="utf-8"></head><body style="background:#1e1e2e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#cdd6f4"><div style="text-align:center;max-width:520px;padding:0 20px"><div style="font-size:2em;margin-bottom:16px">AI 翻译配音</div><div id="load-status" style="color:#a6adc8">正在启动…</div><div style="margin-top:12px;color:#585b70;font-size:0.82em">首次运行需安装 Python 依赖，约需 2–5 分钟</div></div></body></html>`;
 
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -241,10 +331,22 @@ async function createWindow() {
     show: false,
   });
 
-  // Show a loading page while Gradio starts
-  mainWindow.loadURL(`data:text/html,<html><body style="background:#1e1e2e;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#cdd6f4"><div style="text-align:center"><div style="font-size:2em;margin-bottom:16px">AI 翻译配音</div><div style="color:#a6adc8">正在启动后端服务，请稍候…</div></div></body></html>`);
+  mainWindow.loadURL(`data:text/html,${encodeURIComponent(loadingHtml)}`);
   mainWindow.show();
 
+  // Wait for loading page DOM to be ready before updating status text
+  await new Promise((resolve) => mainWindow.webContents.once("did-finish-load", resolve));
+
+  let port;
+  try {
+    port = await startPythonBackend(mainWindow);
+  } catch (err) {
+    dialog.showErrorBox("启动失败", `后端启动失败:\n${err.message}`);
+    app.quit();
+    return;
+  }
+
+  const serverUrl = `http://${GRADIO_HOST}:${port}`;
   try {
     await waitForServer(serverUrl);
     mainWindow.loadURL(serverUrl);
