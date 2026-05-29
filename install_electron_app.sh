@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
 
-APP_NAME="VoxOver"
+APP_NAME="SoftForge"
 BUILD_APP="$ROOT_DIR/dist-electron/mac-arm64/$APP_NAME.app"
 INSTALL_DIR="$HOME/Applications"
 DEST_APP="$INSTALL_DIR/$APP_NAME.app"
@@ -13,41 +13,9 @@ DEST_APP="$INSTALL_DIR/$APP_NAME.app"
 echo "=== 1. Building with electron-builder ==="
 rm -rf "$BUILD_APP"
 export CSC_IDENTITY_AUTO_DISCOVERY=false
-node_modules/.bin/electron-builder --dir --mac --arm64 &
-BUILDER_PID=$!
-LAST_SIZE=0
-STABLE_TICKS=0
-for _ in {1..300}; do
-    if ! kill -0 "$BUILDER_PID" 2>/dev/null; then
-        wait "$BUILDER_PID"
-        break
-    fi
-    if [ -f "$BUILD_APP/Contents/Resources/app.asar" ]; then
-        CURRENT_SIZE="$(du -sk "$BUILD_APP" 2>/dev/null | awk '{print $1}')"
-        if [ "$CURRENT_SIZE" = "$LAST_SIZE" ]; then
-            STABLE_TICKS=$((STABLE_TICKS + 1))
-        else
-            LAST_SIZE="$CURRENT_SIZE"
-            STABLE_TICKS=0
-        fi
-    fi
-    if [ "$STABLE_TICKS" -ge 10 ]; then
-        # electron-builder can hang after writing the dir target on this machine.
-        if kill -0 "$BUILDER_PID" 2>/dev/null; then
-            echo "  Builder is still running after app output stabilized; continuing with generated app."
-            kill "$BUILDER_PID" 2>/dev/null || true
-            wait "$BUILDER_PID" 2>/dev/null || true
-        fi
-        break
-    fi
-    sleep 1
-done
-if kill -0 "$BUILDER_PID" 2>/dev/null; then
-    echo "  electron-builder timed out before producing an app."
-    kill "$BUILDER_PID" 2>/dev/null || true
-    wait "$BUILDER_PID" 2>/dev/null || true
-    exit 1
-fi
+export NO_UPDATE_NOTIFIER=1
+touch dist-electron/.metadata_never_index 2>/dev/null || true
+node_modules/.bin/electron-builder --dir --mac --arm64
 if [ ! -d "$BUILD_APP" ]; then
     echo "  Build output missing: $BUILD_APP"
     exit 1

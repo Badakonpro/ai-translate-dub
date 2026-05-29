@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
 
-APP_NAME="VoxOver"
+APP_NAME="SoftForge"
 VERSION="$(node -p "require('./package.json').version")"
 APP_PATH="$HOME/Applications/$APP_NAME.app"
 DMG_PATH="$ROOT_DIR/dist-electron/$APP_NAME-$VERSION-arm64.dmg"

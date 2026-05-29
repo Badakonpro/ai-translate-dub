@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="SoftForge app icon">
+  <defs>
+    <linearGradient id="bg" x1="160" y1="80" x2="864" y2="944" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#101827"/>
+      <stop offset="0.56" stop-color="#12343B"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="226" fill="url(#bg)"/>
+
+  <rect x="208" y="212" width="608" height="500" rx="92" fill="none" stroke="#F8F3E7" stroke-width="56"/>
+  <path d="M380 374 380 516 498 445z" fill="#FF8A65"/>
+
+  <g fill="#2DD4BF">
+    <rect x="558" y="334" width="40" height="222" rx="20"/>
+    <rect x="626" y="382" width="40" height="126" rx="20"/>
+    <rect x="694" y="314" width="40" height="262" rx="20"/>
+  </g>
+
+  <rect x="318" y="606" width="290" height="44" rx="22" fill="#F8F3E7"/>
+  <rect x="640" y="606" width="92" height="44" rx="22" fill="#FF8A65"/>
+  <rect x="356" y="770" width="210" height="40" rx="20" fill="#7DD3FC"/>
+  <rect x="604" y="770" width="160" height="40" rx="20" fill="#2DD4BF"/>
+</svg>

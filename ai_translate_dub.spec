@@ -49,7 +49,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="VoxOver",
+    name="SoftForge",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -72,8 +72,8 @@ coll = COLLECT(
 )
 app = BUNDLE(
     coll,
-    name="VoxOver.app",
-    icon=None,
+    name="SoftForge.app",
+    icon="assets/app-icon.icns",
     bundle_identifier="com.local.ai-translate-dub",
     info_plist={
         "NSHighResolutionCapable": "True",
