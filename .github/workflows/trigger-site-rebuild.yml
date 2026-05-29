@@ -1,0 +1,15 @@
+name: Trigger site rebuild on release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  rebuild-site:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Cloudflare Pages deploy
+        run: |
+          curl -s -X POST "${{ secrets.CF_DEPLOY_HOOK }}"
+          echo "Deploy hook triggered for ${{ github.event.release.tag_name }}"
+
