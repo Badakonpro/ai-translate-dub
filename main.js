@@ -89,6 +89,15 @@ function syncRuntimePath() {
     fs.cpSync(sourcePipeline, targetPipeline, { recursive: true });
   }
 
+  const sourceFfmpeg = path.join(resPath, "ffmpeg");
+  const targetFfmpeg = path.join(runtimePath, "ffmpeg");
+  if (fs.existsSync(sourceFfmpeg)) {
+    fs.rmSync(targetFfmpeg, { recursive: true, force: true });
+    fs.cpSync(sourceFfmpeg, targetFfmpeg, { recursive: true });
+    const ffmpegBin = path.join(targetFfmpeg, "ffmpeg");
+    if (fs.existsSync(ffmpegBin)) fs.chmodSync(ffmpegBin, 0o755);
+  }
+
   fs.mkdirSync(path.join(runtimePath, "outputs"), { recursive: true });
   return runtimePath;
 }
@@ -287,6 +296,8 @@ async function startPythonBackend(win) {
 
   const port = await findFreePort(7860);
   console.log(`Starting Gradio on port ${port}`);
+  const bundledFfmpegDir = path.join(resPath, "ffmpeg");
+  const bundledFfmpeg = path.join(bundledFfmpegDir, "ffmpeg");
 
   const env = Object.assign({}, process.env, {
     GRADIO_ANALYTICS_ENABLED: "False",
@@ -296,11 +307,12 @@ async function startPythonBackend(win) {
     // source code which could allow path characters to break the script.
     APP_RUNTIME_PATH: resPath,
     WHISPER_CACHE_DIR: path.join(app.getPath("userData"), "whisper-models"),
+    FFMPEG_PATH: fs.existsSync(bundledFfmpeg) ? bundledFfmpeg : (process.env.FFMPEG_PATH || ""),
     // Prepend bundled ffmpeg dir first, then common Homebrew / system paths.
     // macOS GUI apps launched from Finder/DMG have a stripped PATH that does
     // not include /opt/homebrew/bin, so we add it explicitly here.
     PATH: [
-      path.join(resPath, "ffmpeg"), // bundled ffmpeg (optional, future use)
+      bundledFfmpegDir,
       "/opt/homebrew/bin",          // Homebrew on Apple Silicon
       "/usr/local/bin",             // Homebrew on Intel macOS / manually installed
       "/usr/bin",

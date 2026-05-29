@@ -103,9 +103,10 @@ def find_ffmpeg() -> str:
     """Return the full path to the ffmpeg executable.
 
     Resolution order:
-    1. FFMPEG_PATH environment variable (explicit override from Electron)
-    2. PATH search via shutil.which
-    3. Common installation paths for macOS (Homebrew) and Linux
+    1. FFMPEG_PATH environment variable (explicit override from Electron).
+    2. Bundled app/runtime locations.
+    3. PATH search via shutil.which.
+    4. Common installation paths for macOS (Homebrew) and Linux.
 
     macOS GUI apps launched from Finder/DMG have a stripped PATH that does
     not include /opt/homebrew/bin, so we fall back to known locations.
@@ -113,6 +114,15 @@ def find_ffmpeg() -> str:
     explicit = os.environ.get("FFMPEG_PATH", "").strip()
     if explicit and os.path.isfile(explicit) and os.access(explicit, os.X_OK):
         return explicit
+
+    bundled = [
+        PROJECT_DIR / "ffmpeg" / "ffmpeg",
+        PROJECT_DIR / "bin" / "ffmpeg",
+        PROJECT_DIR / "vendor" / "ffmpeg" / "darwin-arm64" / "ffmpeg",
+    ]
+    for candidate in bundled:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
 
     cmd = shutil.which("ffmpeg")
     if cmd:
@@ -129,6 +139,7 @@ def find_ffmpeg() -> str:
             return path_
 
     raise FileNotFoundError(
-        "ffmpeg not found. Please install it (e.g. 'brew install ffmpeg') "
-        "and make sure it is on your PATH."
+        "ffmpeg not found. The app bundle should include ffmpeg; if this is a "
+        "development checkout, install it with 'brew install ffmpeg' or set "
+        "FFMPEG_PATH."
     )

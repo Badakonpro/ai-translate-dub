@@ -1,8 +1,8 @@
 import importlib.util
-import shutil
 from dataclasses import dataclass
 from typing import List
 
+from pipeline.config import find_ffmpeg
 from pipeline.transcriber import get_whisper_cache_dir
 
 
@@ -45,11 +45,17 @@ _MSGS = {
 
 def check_runtime(lang: str = "zh") -> List[Diagnostic]:
     m = _MSGS.get(lang, _MSGS["zh"])
+    try:
+        find_ffmpeg()
+        ffmpeg_ok = True
+    except FileNotFoundError:
+        ffmpeg_ok = False
+
     checks = [
         Diagnostic(
             name="ffmpeg",
-            ok=shutil.which("ffmpeg") is not None,
-            message=m["ffmpeg_ok"] if shutil.which("ffmpeg") else m["ffmpeg_fail"],
+            ok=ffmpeg_ok,
+            message=m["ffmpeg_ok"] if ffmpeg_ok else m["ffmpeg_fail"],
         )
     ]
 
