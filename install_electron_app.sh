@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
 
-APP_NAME="SoftForge"
+APP_NAME="QuietKit"
 BUILD_APP="$ROOT_DIR/dist-electron/mac-arm64/$APP_NAME.app"
 INSTALL_DIR="$HOME/Applications"
 DEST_APP="$INSTALL_DIR/$APP_NAME.app"

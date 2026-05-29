@@ -49,7 +49,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="SoftForge",
+    name="QuietKit",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -68,11 +68,11 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name="VoxOver",
+    name="QuietKit",
 )
 app = BUNDLE(
     coll,
-    name="SoftForge.app",
+    name="QuietKit.app",
     icon="assets/app-icon.icns",
     bundle_identifier="com.local.ai-translate-dub",
     info_plist={

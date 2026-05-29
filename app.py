@@ -55,7 +55,7 @@ _LANG_MAP = {"中文": "zh", "English": "en"}
 
 _I18N = {
     "zh": {
-        "app_title": "# SoftForge",
+        "app_title": "# QuietKit",
         "app_desc": "上传视频后自动提取语音、转录、翻译，并输出带可开关软字幕的 MKV 文件。",
         "sec_upload": "### 1. 上传视频",
         "video_label": "源视频",
@@ -156,7 +156,7 @@ _I18N = {
         "fetch_openai_fail_no_key": "❌ 请先填写 OpenAI API Key。",
     },
     "en": {
-        "app_title": "# SoftForge",
+        "app_title": "# QuietKit",
         "app_desc": "Upload a video to automatically extract audio, transcribe, translate, and output an MKV with switchable subtitles.",
         "sec_upload": "### 1. Upload Video",
         "video_label": "Source Video",
@@ -649,6 +649,7 @@ def build_ui():
             gr.update(label=t["acc_parallel"]),
             gr.update(label=t["acc_subtitle"]),
             gr.update(label=t["acc_runtime"]),
+            gr.update(value=format_runtime_report(lang_code)),
             gr.update(label=t["acc_ctx_output"]),
             gr.update(label=t["acc_playback"]),
         )
@@ -658,11 +659,11 @@ def build_ui():
         secondary_hue="slate",
     )
 
-    with gr.Blocks(theme=theme, title="SoftForge") as demo:
+    with gr.Blocks(theme=theme, title="QuietKit") as demo:
         # ── Header row with title + language switch ──
         with gr.Row(equal_height=True):
             with gr.Column(scale=4):
-                app_title_md = gr.Markdown("# SoftForge")
+                app_title_md = gr.Markdown("# QuietKit")
             with gr.Column(scale=1, min_width=140):
                 lang_radio = gr.Radio(
                     choices=["中文", "English"],
@@ -842,7 +843,7 @@ def build_ui():
                     srt_output = gr.File(label="下载字幕文件（SRT）", visible=True)
 
                 with gr.Accordion(_I18N["zh"]["acc_runtime"], open=False) as acc_runtime:
-                    gr.Markdown(format_runtime_report())
+                    runtime_md = gr.Markdown(format_runtime_report("zh"))
 
                 with gr.Accordion(_I18N["zh"]["acc_ctx_output"], open=False) as acc_ctx_output:
                     context_output = gr.Textbox(
@@ -954,7 +955,7 @@ def build_ui():
                 process_btn, sec_result_md, mkv_output, srt_output, context_output,
                 playback_md_comp, status_text,
                 acc_context, acc_ollama, acc_openai, acc_anthropic, acc_deepseek, acc_parallel,
-                acc_subtitle, acc_runtime, acc_ctx_output, acc_playback,
+                acc_subtitle, acc_runtime, runtime_md, acc_ctx_output, acc_playback,
             ],
         )
 
