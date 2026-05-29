@@ -408,7 +408,7 @@ class OpenAITranslator(BaseTranslator):
 class AnthropicTranslator(BaseTranslator):
     """Anthropic Claude translator."""
 
-    FALLBACK_MODELS = ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-3-5"]
+    _FALLBACK_MODELS = ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-3-5"]
 
     def __init__(self, api_key: str = None, model: str = "claude-sonnet-4-5"):
         config = _load_config()
