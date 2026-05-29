@@ -51,7 +51,7 @@ _LANG_MAP = {"中文": "zh", "English": "en"}
 
 _I18N = {
     "zh": {
-        "app_title": "# QuietKit",
+        "app_title": "# VoxOver",
         "app_desc": "上传视频后自动提取语音、转录、翻译，并输出带可开关软字幕的 MKV 文件。",
         "sec_upload": "### 1. 上传视频",
         "video_label": "源视频",
@@ -153,7 +153,7 @@ _I18N = {
         "fetch_openai_fail_no_key": "❌ 请先填写 OpenAI API Key。",
     },
     "en": {
-        "app_title": "# QuietKit",
+        "app_title": "# VoxOver",
         "app_desc": "Upload a video to automatically extract audio, transcribe, translate, and output an MKV with switchable subtitles.",
         "sec_upload": "### 1. Upload Video",
         "video_label": "Source Video",
@@ -660,11 +660,11 @@ def build_ui():
         secondary_hue="slate",
     )
 
-    with gr.Blocks(theme=theme, title="QuietKit") as demo:
+    with gr.Blocks(theme=theme, title="VoxOver") as demo:
         # ── Header row with title + language switch ──
         with gr.Row(equal_height=True):
             with gr.Column(scale=4):
-                app_title_md = gr.Markdown("# QuietKit")
+                app_title_md = gr.Markdown("# VoxOver")
             with gr.Column(scale=1, min_width=140):
                 lang_radio = gr.Radio(
                     choices=["中文", "English"],
