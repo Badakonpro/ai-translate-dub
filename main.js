@@ -206,7 +206,7 @@ async function ensureDeps(basePythonCmd, resPath, win) {
   // Create venv if it doesn't exist yet
   if (!fs.existsSync(venvPython)) {
     console.log("Creating Python venv at", venvDir);
-    updateLoadingStatus(win, "正在创建 Python 虚拟环境…");
+    updateLoadingStatus(win, "Creating Python virtual environment…");
     await runCmd(basePythonCmd.command, [...basePythonCmd.args, "-m", "venv", venvDir]);
     console.log("Venv created.");
   }
@@ -225,7 +225,7 @@ async function ensureDeps(basePythonCmd, resPath, win) {
     const totalPkgs = reqLines.length;
     let collectedCount = 0;
 
-    updateLoadingStatus(win, `正在安装 Python 依赖（0 / ${totalPkgs}）`, "首次运行约需 2–5 分钟，请耐心等待…");
+    updateLoadingStatus(win, `Installing Python dependencies (0 / ${totalPkgs}）`, "First run may take 2-5 minutes, please wait…");
 
     await runCmdWithProgress(
       venvPip,
@@ -238,16 +238,16 @@ async function ensureDeps(basePythonCmd, resPath, win) {
           const bar = buildBar(collectedCount, totalPkgs, 16);
           updateLoadingStatus(
             win,
-            `正在安装依赖  ${bar}  ${collectedCount} / ${totalPkgs}`,
+            `Installing deps  ${bar}  ${collectedCount} / ${totalPkgs}`,
             pkgName
           );
         } else if (line.startsWith("Downloading ")) {
           const pkgName = line.replace("Downloading ", "").split("-")[0];
-          updateLoadingStatus(win, undefined, `下载 ${pkgName}…`);
+          updateLoadingStatus(win, undefined, `Downloading ${pkgName}…`);
         } else if (line.startsWith("Installing collected")) {
-          updateLoadingStatus(win, "正在写入安装文件…", "");
+          updateLoadingStatus(win, "Writing installation files…", "");
         } else if (line.startsWith("Successfully installed")) {
-          updateLoadingStatus(win, "✅ 依赖安装完成！", "");
+          updateLoadingStatus(win, "✅ Dependencies installed!", "");
         }
       }
     );
@@ -256,7 +256,7 @@ async function ensureDeps(basePythonCmd, resPath, win) {
     console.log("Dependencies installed.");
   } else {
     console.log("Dependencies already up-to-date.");
-    updateLoadingStatus(win, "✅ 依赖已安装，跳过安装步骤", "");
+    updateLoadingStatus(win, "✅ Dependencies already installed, skipping", "");
   }
 
   return venvPython;
@@ -279,11 +279,11 @@ async function startPythonBackend(win) {
   } catch (err) {
     console.error("Dep install failed:", err.message);
     pythonCmd = basePythonCmd;
-    updateLoadingStatus(win, `⚠️ 依赖安装失败，尝试直接启动…`);
+    updateLoadingStatus(win, `⚠️ Dependency install failed, trying to start directly…`);
   }
 
   console.log(`Using Python: ${pythonCmd.label}`);
-  updateLoadingStatus(win, "正在启动后端服务，请稍候…");
+  updateLoadingStatus(win, "Starting backend service, please wait…");
 
   const port = await findFreePort(7860);
   console.log(`Starting Gradio on port ${port}`);
@@ -351,8 +351,8 @@ demo.queue().launch(
   pythonProcess.on("error", (err) => {
     console.error("Failed to start Python:", err.message);
     dialog.showErrorBox(
-      "启动失败",
-      `无法启动 Python 后端:\n${err.message}\n\n请确认 Python3 及依赖已安装。`
+      "Startup Failed",
+      `Cannot start Python backend:\n${err.message}\n\nPlease verify Python3 and dependencies are installed.`
     );
   });
 
@@ -361,7 +361,7 @@ demo.queue().launch(
     pythonProcess = null;
     if (!isQuitting && mainWindow) {
       mainWindow.webContents.executeJavaScript(
-        `document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;"><h2>后端服务已停止</h2><p>请重新启动应用。</p></div>';`
+        `document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;"><h2>Backend service stopped</h2><p>Please restart the application.</p></div>';`
       );
     }
   });
@@ -411,7 +411,7 @@ async function createWindow() {
   try {
     port = await startPythonBackend(mainWindow);
   } catch (err) {
-    dialog.showErrorBox("启动失败", `后端启动失败:\n${err.message}`);
+    dialog.showErrorBox("Startup Failed", `Backend startup failed:\n${err.message}`);
     app.quit();
     return;
   }
@@ -421,7 +421,7 @@ async function createWindow() {
     await waitForServer(serverUrl);
     mainWindow.loadURL(serverUrl);
   } catch (err) {
-    dialog.showErrorBox("启动失败", `Gradio 后端未能在限定时间内启动:\n${err.message}`);
+    dialog.showErrorBox("Startup Failed", `Gradio backend did not start in time:\n${err.message}`);
     app.quit();
     return;
   }
@@ -441,7 +441,7 @@ app.whenReady().then(async () => {
     await createWindow();
   } catch (err) {
     console.error("Failed to start:", err);
-    dialog.showErrorBox("启动失败", `应用启动失败:\n${err.message}`);
+    dialog.showErrorBox("Startup Failed", `Application startup failed:\n${err.message}`);
     app.quit();
   }
 });

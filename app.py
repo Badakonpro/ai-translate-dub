@@ -315,7 +315,7 @@ def process_video(
     Main processing pipeline. Called when the user clicks 'Process'.
     Returns: (status_message, mkv_output_path, srt_output_path, translation_context)
     """
-    t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
+    t = _I18N.get(_LANG_MAP.get(lang, "en"), _I18N["zh"])
 
     if video_path is None:
         return t["no_video"], None, None, "", gr.update(value=t["process_btn"], interactive=True)
@@ -476,7 +476,7 @@ def save_settings(whisper_model_val, source_lang_val, target_lang_val,
                   parallel_translation_val, translation_workers_val,
                   lang="中文"):
     """Write current UI values back to config.yaml so they survive restarts."""
-    t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
+    t = _I18N.get(_LANG_MAP.get(lang, "en"), _I18N["zh"])
     updates = {
         "defaults": {
             "whisper_model": whisper_model_val,
@@ -546,7 +546,7 @@ def _build_translator(backend, deepseek_api_key, ollama_host, ollama_model, olla
 def fetch_deepseek_models(api_key, lang="中文", progress=gr.Progress()):
     """Pull model list from DeepSeek API and return updated Dropdown choices."""
     from pipeline.translator import DeepSeekTranslator
-    t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
+    t = _I18N.get(_LANG_MAP.get(lang, "en"), _I18N["zh"])
     key = api_key or os.environ.get("DEEPSEEK_API_KEY", "")
     if not key or key.strip().startswith("sk-your-"):
         return gr.update(), t["fetch_fail_no_key"]
@@ -561,7 +561,7 @@ def fetch_deepseek_models(api_key, lang="中文", progress=gr.Progress()):
 def fetch_openai_models(api_key, base_url, lang="中文", progress=gr.Progress()):
     """Pull model list from OpenAI API and return updated Dropdown choices."""
     from pipeline.translator import OpenAITranslator
-    t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
+    t = _I18N.get(_LANG_MAP.get(lang, "en"), _I18N["zh"])
     key = api_key or os.environ.get("OPENAI_API_KEY", "")
     if not key or key.strip().startswith("sk-your-"):
         return gr.update(), t["fetch_openai_fail_no_key"]
@@ -576,7 +576,7 @@ def fetch_openai_models(api_key, base_url, lang="中文", progress=gr.Progress()
 
 def pull_ollama_model(ollama_host, ollama_model, lang="中文", progress=gr.Progress()):
     from pipeline.translator import OllamaTranslator
-    t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
+    t = _I18N.get(_LANG_MAP.get(lang, "en"), _I18N["zh"])
 
     host = ollama_host or os.environ.get("OLLAMA_HOST", "http://localhost:11434")
     model = ollama_model or os.environ.get("OLLAMA_MODEL", "qwen3:latest")
@@ -606,8 +606,8 @@ def build_ui():
     parallel_workers_default = max(2, _coerce_translation_workers(translation_config.get("parallel_workers", 3)))
 
     def switch_language(lang_label):
-        lang_code = _LANG_MAP.get(lang_label, "zh")
-        t = _I18N.get(lang_code, _I18N["zh"])
+        lang_code = _LANG_MAP.get(lang_label, "en")
+        t = _I18N.get(lang_code, _I18N["en"])
         return (
             gr.update(value=t["app_title"]),
             gr.update(value=t["app_desc"]),
@@ -668,7 +668,7 @@ def build_ui():
             with gr.Column(scale=1, min_width=140):
                 lang_radio = gr.Radio(
                     choices=["中文", "English"],
-                    value="中文",
+                    value="English",
                     show_label=False,
                     container=False,
                 )
@@ -706,7 +706,7 @@ def build_ui():
                     label="目标语言",
                     info="选择常用语言，或直接输入自定义语言名称。",
                 )
-                with gr.Accordion(_I18N["zh"]["acc_context"], open=False) as acc_context:
+                with gr.Accordion(_I18N["en"]["acc_context"], open=False) as acc_context:
                     video_title = gr.Textbox(
                         value="",
                         label="视频标题/主题",
@@ -723,7 +723,7 @@ def build_ui():
                     label="翻译后端",
                 )
 
-                with gr.Accordion(_I18N["zh"]["acc_ollama"], open=False) as acc_ollama:
+                with gr.Accordion(_I18N["en"]["acc_ollama"], open=False) as acc_ollama:
                     ollama_host = gr.Textbox(
                         label="Ollama Host",
                         value=os.environ.get("OLLAMA_HOST", ollama_config.get("host", "http://localhost:11434")),
@@ -741,15 +741,15 @@ def build_ui():
                     pull_ollama_btn = gr.Button("拉取模型")
                     ollama_model_status = gr.Markdown("")
 
-                with gr.Accordion(_I18N["zh"]["acc_openai"], open=False) as acc_openai:
+                with gr.Accordion(_I18N["en"]["acc_openai"], open=False) as acc_openai:
                     openai_api_key = gr.Textbox(
-                        label=_I18N["zh"]["openai_api_key_label"],
+                        label=_I18N["en"]["openai_api_key_label"],
                         type="password",
                         placeholder="sk-...",
                         value=os.environ.get("OPENAI_API_KEY", openai_config.get("api_key", "")),
                     )
                     openai_base_url = gr.Textbox(
-                        label=_I18N["zh"]["openai_base_url_label"],
+                        label=_I18N["en"]["openai_base_url_label"],
                         value=openai_config.get("base_url", "https://api.openai.com/v1"),
                         placeholder="https://api.openai.com/v1",
                     )
@@ -760,13 +760,13 @@ def build_ui():
                     openai_model = gr.Dropdown(
                         choices=OpenAITranslator._FALLBACK_MODELS,
                         value=openai_config.get("model", "gpt-4o"),
-                        label=_I18N["zh"]["openai_model_label"],
+                        label=_I18N["en"]["openai_model_label"],
                         allow_custom_value=True,
                     )
 
-                with gr.Accordion(_I18N["zh"]["acc_anthropic"], open=False) as acc_anthropic:
+                with gr.Accordion(_I18N["en"]["acc_anthropic"], open=False) as acc_anthropic:
                     anthropic_api_key = gr.Textbox(
-                        label=_I18N["zh"]["anthropic_api_key_label"],
+                        label=_I18N["en"]["anthropic_api_key_label"],
                         type="password",
                         placeholder="sk-ant-...",
                         value=os.environ.get("ANTHROPIC_API_KEY", anthropic_config.get("api_key", "")),
@@ -775,10 +775,10 @@ def build_ui():
                     anthropic_model = gr.Dropdown(
                         choices=AnthropicTranslator._FALLBACK_MODELS,
                         value=anthropic_config.get("model", "claude-sonnet-4-5"),
-                        label=_I18N["zh"]["anthropic_model_label"],
+                        label=_I18N["en"]["anthropic_model_label"],
                     )
 
-                with gr.Accordion(_I18N["zh"]["acc_deepseek"], open=False) as acc_deepseek:
+                with gr.Accordion(_I18N["en"]["acc_deepseek"], open=False) as acc_deepseek:
                     deepseek_api_key = gr.Textbox(
                         label="API Key",
                         type="password",
@@ -796,7 +796,7 @@ def build_ui():
                         allow_custom_value=True,
                     )
 
-                with gr.Accordion(_I18N["zh"]["acc_parallel"], open=False) as acc_parallel:
+                with gr.Accordion(_I18N["en"]["acc_parallel"], open=False) as acc_parallel:
                     parallel_translation = gr.Checkbox(
                         label="启用并行翻译",
                         value=parallel_enabled_default,
@@ -814,7 +814,7 @@ def build_ui():
                 save_btn = gr.Button("💾 保存设置", variant="secondary")
                 save_status = gr.Markdown("")
 
-                with gr.Accordion(_I18N["zh"]["acc_subtitle"], open=False) as acc_subtitle:
+                with gr.Accordion(_I18N["en"]["acc_subtitle"], open=False) as acc_subtitle:
                     burn_subs = gr.Checkbox(
                         label="硬烧录字幕（永久嵌入视频画面）",
                         value=False,
@@ -826,8 +826,8 @@ def build_ui():
                         visible=False,
                     )
                     sub_h_align = gr.Radio(
-                        choices=_I18N["zh"]["h_align_choices"],
-                        value=_I18N["zh"]["h_align_choices"][0],
+                        choices=_I18N["en"]["h_align_choices"],
+                        value=_I18N["en"]["h_align_choices"][0],
                         label="水平对齐",
                         visible=False,
                     )
@@ -849,17 +849,17 @@ def build_ui():
                     mkv_output = gr.File(label="下载输出视频", visible=True)
                     srt_output = gr.File(label="下载字幕文件（SRT）", visible=True)
 
-                with gr.Accordion(_I18N["zh"]["acc_runtime"], open=False) as acc_runtime:
+                with gr.Accordion(_I18N["en"]["acc_runtime"], open=False) as acc_runtime:
                     runtime_md = gr.Markdown(format_runtime_report("zh"))
 
-                with gr.Accordion(_I18N["zh"]["acc_ctx_output"], open=False) as acc_ctx_output:
+                with gr.Accordion(_I18N["en"]["acc_ctx_output"], open=False) as acc_ctx_output:
                     context_output = gr.Textbox(
                         label="全局上下文",
                         lines=8,
                         interactive=False,
                     )
 
-                with gr.Accordion(_I18N["zh"]["acc_playback"], open=False) as acc_playback:
+                with gr.Accordion(_I18N["en"]["acc_playback"], open=False) as acc_playback:
                     playback_md_comp = gr.Markdown(
                         "- VLC / IINA：打开 MKV 后在字幕菜单中开启或切换字幕轨道\n"
                         "- QuickTime：对 MKV 软字幕支持不完整，不建议使用\n"
