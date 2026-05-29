@@ -5,6 +5,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
 
+# Ensure Node 22 LTS (electron-builder is incompatible with Node 25+)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh" && nvm use 22 2>/dev/null || true
+
 APP_NAME="VoxOver"
 VERSION="$(node -p "require('./package.json').version")"
 APP_PATH="$HOME/Applications/$APP_NAME.app"
