@@ -26,15 +26,11 @@ _ALLOWED_BACKENDS = {"ollama", "deepseek", "openai", "anthropic"}
 _MAX_TRANSLATION_WORKERS = 8
 _MAX_VIDEO_TITLE_CHARS = 300
 
-# Maps UI labels (Chinese or English) → internal position keys used by burn_subtitles()
-_SUBTITLE_POSITION_MAP = {
-    "底部居中": "bottom-center",  "Bottom Center": "bottom-center",
-    "底部靠左": "bottom-left",    "Bottom Left":   "bottom-left",
-    "底部靠右": "bottom-right",   "Bottom Right":  "bottom-right",
-    "顶部居中": "top-center",     "Top Center":    "top-center",
-    "顶部靠左": "top-left",       "Top Left":      "top-left",
-    "顶部靠右": "top-right",      "Top Right":     "top-right",
-    "画面中央": "middle-center",  "Middle Center": "middle-center",
+# Maps UI h_align labels (Chinese or English) → internal keys used by burn_subtitles()
+_SUBTITLE_HALIGN_MAP = {
+    "居中": "center",  "Center": "center",
+    "靠左": "left",    "Left":   "left",
+    "靠右": "right",   "Right":  "right",
 }
 
 # Ordered list of target languages shown in the Dropdown
@@ -88,9 +84,10 @@ _I18N = {
         "burn_subs_label": "硬烧录字幕（永久嵌入视频画面）",
         "burn_subs_info": "启用后字幕直接烧录进视频，无需播放器支持字幕轨道；但需重新编码视频，速度较慢。默认输出 MP4。",
         "font_size_label": "字幕字号",
-        "position_label": "字幕位置",
-        "position_choices": ["底部居中", "底部靠左", "底部靠右",
-                             "顶部居中", "顶部靠左", "顶部靠右", "画面中央"],
+        "h_align_label": "水平对齐",
+        "h_align_choices": ["居中", "靠左", "靠右"],
+        "margin_v_label": "垂直位置（距底部边缘像素）",
+        "margin_v_info": "数值越大字幕越靠近画面中的4，0 = 紧贴底部边缘。20-80 适合底部，200+ 可放居中或顶部。",
         "process_btn": "▶ 开始处理",
         "sec_result": "### 4. 结果",
         "video_out_label": "下载输出视频",
@@ -189,9 +186,10 @@ _I18N = {
         "burn_subs_label": "Hard-burn subtitles (embed permanently into video)",
         "burn_subs_info": "Subtitles are burned into the video. No player subtitle support needed, but re-encoding is required (slower). Outputs MP4.",
         "font_size_label": "Subtitle Font Size",
-        "position_label": "Subtitle Position",
-        "position_choices": ["Bottom Center", "Bottom Left", "Bottom Right",
-                             "Top Center", "Top Left", "Top Right", "Middle Center"],
+        "h_align_label": "Horizontal Align",
+        "h_align_choices": ["Center", "Left", "Right"],
+        "margin_v_label": "Vertical Position (px from edge)",
+        "margin_v_info": "Higher value moves subtitle towards screen center. 20-80 = near bottom, 200+ = center or top.",
         "process_btn": "▶ Process Video",
         "sec_result": "### 4. Results",
         "video_out_label": "Download Output Video",
@@ -308,7 +306,8 @@ def process_video(
     translation_workers,
     burn_subs,
     sub_font_size,
-    sub_position,
+    sub_h_align,
+    sub_margin_v,
     lang="中文",
     progress=gr.Progress(),
 ):
@@ -421,13 +420,14 @@ def process_video(
         if burn_subs:
             progress(0.90, desc=t["step5_burn"])
             output_video_path = str(OUTPUT_DIR / f"{video_stem}_{safe_target}_{run_id}_hardburned.mp4")
-            pos_internal = _SUBTITLE_POSITION_MAP.get(sub_position, "bottom-center")
+            h_align_internal = _SUBTITLE_HALIGN_MAP.get(sub_h_align, "center")
             burn_subtitles(
                 video_path,
                 srt_path,
                 output_video_path,
                 font_size=int(sub_font_size),
-                position=pos_internal,
+                h_align=h_align_internal,
+                margin_v=int(sub_margin_v),
                 progress_callback=lambda p, m: progress(0.90 + p * 0.10, desc=f"5/5 {m}"),
             )
             progress(1.0, desc=t["complete"])
@@ -633,7 +633,8 @@ def build_ui():
             gr.update(value=t["save_btn"]),
             gr.update(label=t["burn_subs_label"], info=t["burn_subs_info"]),
             gr.update(label=t["font_size_label"]),
-            gr.update(label=t["position_label"], choices=t["position_choices"], value=t["position_choices"][0]),
+            gr.update(label=t["h_align_label"], choices=t["h_align_choices"], value=t["h_align_choices"][0]),
+            gr.update(label=t["margin_v_label"]),
             gr.update(value=t["process_btn"]),
             gr.update(value=t["sec_result"]),
             gr.update(label=t["video_out_label"]),
@@ -824,10 +825,16 @@ def build_ui():
                         label="字幕字号",
                         visible=False,
                     )
-                    sub_position = gr.Dropdown(
-                        choices=_I18N["zh"]["position_choices"],
-                        value=_I18N["zh"]["position_choices"][0],
-                        label="字幕位置",
+                    sub_h_align = gr.Radio(
+                        choices=_I18N["zh"]["h_align_choices"],
+                        value=_I18N["zh"]["h_align_choices"][0],
+                        label="水平对齐",
+                        visible=False,
+                    )
+                    sub_margin_v = gr.Slider(
+                        minimum=0, maximum=500, step=1, value=20,
+                        label="垂直位置（距底部边缘像素）",
+                        info="数值越大字幕越靠近画面中央，0 = 紧贴底部边缘。20-80 适合底部，200+ 可放居中或顶部。",
                         visible=False,
                     )
 
@@ -888,7 +895,8 @@ def build_ui():
                 translation_workers,
                 burn_subs,
                 sub_font_size,
-                sub_position,
+                sub_h_align,
+                sub_margin_v,
                 lang_radio,
             ],
             outputs=[status_text, mkv_output, srt_output, context_output, process_btn],
@@ -932,9 +940,9 @@ def build_ui():
             outputs=[openai_model, openai_model_status],
         )
         burn_subs.change(
-            fn=lambda v: (gr.update(visible=v), gr.update(visible=v)),
+            fn=lambda v: (gr.update(visible=v), gr.update(visible=v), gr.update(visible=v)),
             inputs=[burn_subs],
-            outputs=[sub_font_size, sub_position],
+            outputs=[sub_font_size, sub_h_align, sub_margin_v],
         )
         parallel_translation.change(
             fn=lambda v: gr.update(visible=v),
@@ -951,7 +959,7 @@ def build_ui():
                 translation_backend, deepseek_api_key, fetch_deepseek_btn, deepseek_model,
                 ollama_host, ollama_model, ollama_auto_pull, pull_ollama_btn,
                 parallel_translation, translation_workers, save_btn,
-                burn_subs, sub_font_size, sub_position,
+                burn_subs, sub_font_size, sub_h_align, sub_margin_v,
                 process_btn, sec_result_md, mkv_output, srt_output, context_output,
                 playback_md_comp, status_text,
                 acc_context, acc_ollama, acc_openai, acc_anthropic, acc_deepseek, acc_parallel,

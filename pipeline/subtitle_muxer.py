@@ -8,15 +8,11 @@ from typing import List
 
 from .config import find_ffmpeg
 
-# ASS alignment values for subtitle positioning (numpad layout)
-_POSITION_ALIGN = {
-    "bottom-center": 2,
-    "bottom-left":   1,
-    "bottom-right":  3,
-    "top-center":    8,
-    "top-left":      7,
-    "top-right":     9,
-    "middle-center": 5,
+# ASS alignment values for horizontal subtitle alignment (bottom row)
+_HALIGN_ASS = {
+    "center": 2,
+    "left":   1,
+    "right":  3,
 }
 
 # ISO 639-2/B language codes for common target languages
@@ -154,7 +150,8 @@ def burn_subtitles(
     srt_path: str,
     output_path: str = None,
     font_size: int = 24,
-    position: str = "bottom-center",
+    h_align: str = "center",
+    margin_v: int = 20,
     progress_callback=None,
 ) -> str:
     """
@@ -169,7 +166,8 @@ def burn_subtitles(
         srt_path:          Path to the SRT subtitle file.
         output_path:       Path for the output MP4. Defaults to <video>_hardburned.mp4.
         font_size:         Subtitle font size in points (default 24).
-        position:          One of _POSITION_ALIGN keys (default "bottom-center").
+        h_align:           Horizontal alignment: "center" / "left" / "right" (default "center").
+        margin_v:          Vertical margin in pixels from the bottom edge (default 20).
         progress_callback: Optional callback(progress_pct, message).
 
     Returns:
@@ -189,7 +187,7 @@ def burn_subtitles(
         output_path = str(Path(output_path).resolve())
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-    align = _POSITION_ALIGN.get(position, 2)
+    align = _HALIGN_ASS.get(h_align, 2)
 
     # Copy SRT to a temp path without spaces/special chars so ffmpeg's
     # subtitles filter can parse the path reliably.
@@ -200,7 +198,7 @@ def burn_subtitles(
 
         # Escape colons for the ffmpeg filtergraph.
         safe_srt = tmp_srt.replace("\\", "/").replace(":", "\\:")
-        force_style = f"FontSize={font_size},Alignment={align},MarginV=20"
+        force_style = f"FontSize={font_size},Alignment={align},MarginV={margin_v}"
         vf = f"subtitles='{safe_srt}':force_style='{force_style}'"
 
         if progress_callback:
