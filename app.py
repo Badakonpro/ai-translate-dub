@@ -319,13 +319,13 @@ def process_video(
     t = _I18N.get(_LANG_MAP.get(lang, "zh"), _I18N["zh"])
 
     if video_path is None:
-        return t["no_video"], None, None, ""
+        return t["no_video"], None, None, "", gr.update(value=t["process_btn"], interactive=True)
 
     # ── Input validation ────────────────────────────────────────────
     if whisper_model not in _ALLOWED_WHISPER_MODELS:
-        return t["invalid_whisper"] + whisper_model, None, None, ""
+        return t["invalid_whisper"] + whisper_model, None, None, "", gr.update(value=t["process_btn"], interactive=True)
     if translation_backend not in _ALLOWED_BACKENDS:
-        return t["invalid_backend"] + translation_backend, None, None, ""
+        return t["invalid_backend"] + translation_backend, None, None, "", gr.update(value=t["process_btn"], interactive=True)
     translation_workers = _coerce_translation_workers(translation_workers)
     use_translation_context = bool(use_translation_context)
     parallel_translation = bool(parallel_translation)
@@ -362,7 +362,7 @@ def process_video(
         )
 
         if not segments:
-            return t["no_speech"], None, None, ""
+            return t["no_speech"], None, None, "", gr.update(value=t["process_btn"], interactive=True)
 
         progress(0.50, desc=t["transcribe_done"].format(len(segments)))
 
@@ -436,7 +436,7 @@ def process_video(
                 video=Path(output_video_path).name,
                 srt=Path(srt_path).name,
             )
-            return summary, output_video_path, srt_path, translation_context
+            return summary, output_video_path, srt_path, translation_context, gr.update(value=t["process_btn"], interactive=True)
         else:
             progress(0.90, desc=t["step5_mux"])
             mkv_path = str(OUTPUT_DIR / f"{video_stem}_{safe_target}_{run_id}_subtitled.mkv")
@@ -453,12 +453,12 @@ def process_video(
                 video=Path(mkv_path).name,
                 srt=Path(srt_path).name,
             )
-            return summary, mkv_path, srt_path, translation_context
+            return summary, mkv_path, srt_path, translation_context, gr.update(value=t["process_btn"], interactive=True)
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return f"Error: {str(e)}", None, None, translation_context
+        return f"Error: {str(e)}", None, None, translation_context, gr.update(value=t["process_btn"], interactive=True)
     finally:
         if audio_path:
             try:
@@ -642,10 +642,10 @@ def build_ui():
             gr.update(value=t["playback_md"]),
             gr.update(value=t["initial_hint"]),
             gr.update(label=t["acc_context"]),
-            gr.update(label=t["acc_deepseek"]),
+            gr.update(label=t["acc_ollama"]),
             gr.update(label=t["acc_openai"]),
             gr.update(label=t["acc_anthropic"]),
-            gr.update(label=t["acc_ollama"]),
+            gr.update(label=t["acc_deepseek"]),
             gr.update(label=t["acc_parallel"]),
             gr.update(label=t["acc_subtitle"]),
             gr.update(label=t["acc_runtime"]),
@@ -721,23 +721,23 @@ def build_ui():
                     label="翻译后端",
                 )
 
-                with gr.Accordion(_I18N["zh"]["acc_deepseek"], open=False) as acc_deepseek:
-                    deepseek_api_key = gr.Textbox(
-                        label="API Key",
-                        type="password",
-                        placeholder="sk-...",
-                        value=os.environ.get("DEEPSEEK_API_KEY", deepseek_config.get("api_key", "")),
+                with gr.Accordion(_I18N["zh"]["acc_ollama"], open=False) as acc_ollama:
+                    ollama_host = gr.Textbox(
+                        label="Ollama Host",
+                        value=os.environ.get("OLLAMA_HOST", ollama_config.get("host", "http://localhost:11434")),
+                        placeholder="http://localhost:11434",
                     )
-                    with gr.Row():
-                        fetch_deepseek_btn = gr.Button("🔄 拉取模型列表", size="sm")
-                        deepseek_model_status = gr.Markdown("")
-                    deepseek_model = gr.Dropdown(
-                        choices=["deepseek-chat", "deepseek-reasoner"],
-                        value=deepseek_config.get("model", "deepseek-chat"),
-                        label="DeepSeek 模型",
-                        info="点击「拉取模型列表」可获取最新可用模型。",
-                        allow_custom_value=True,
+                    ollama_model = gr.Textbox(
+                        label="Ollama 模型",
+                        value=os.environ.get("OLLAMA_MODEL", ollama_config.get("model", "qwen3:latest")),
+                        placeholder="qwen3:latest",
                     )
+                    ollama_auto_pull = gr.Checkbox(
+                        label="缺失时自动拉取",
+                        value=False,
+                    )
+                    pull_ollama_btn = gr.Button("拉取模型")
+                    ollama_model_status = gr.Markdown("")
 
                 with gr.Accordion(_I18N["zh"]["acc_openai"], open=False) as acc_openai:
                     openai_api_key = gr.Textbox(
@@ -776,23 +776,23 @@ def build_ui():
                         label=_I18N["zh"]["anthropic_model_label"],
                     )
 
-                with gr.Accordion(_I18N["zh"]["acc_ollama"], open=False) as acc_ollama:
-                    ollama_host = gr.Textbox(
-                        label="Ollama Host",
-                        value=os.environ.get("OLLAMA_HOST", ollama_config.get("host", "http://localhost:11434")),
-                        placeholder="http://localhost:11434",
+                with gr.Accordion(_I18N["zh"]["acc_deepseek"], open=False) as acc_deepseek:
+                    deepseek_api_key = gr.Textbox(
+                        label="API Key",
+                        type="password",
+                        placeholder="sk-...",
+                        value=os.environ.get("DEEPSEEK_API_KEY", deepseek_config.get("api_key", "")),
                     )
-                    ollama_model = gr.Textbox(
-                        label="Ollama 模型",
-                        value=os.environ.get("OLLAMA_MODEL", ollama_config.get("model", "qwen3:latest")),
-                        placeholder="qwen3:latest",
+                    with gr.Row():
+                        fetch_deepseek_btn = gr.Button("🔄 拉取模型列表", size="sm")
+                        deepseek_model_status = gr.Markdown("")
+                    deepseek_model = gr.Dropdown(
+                        choices=["deepseek-chat", "deepseek-reasoner"],
+                        value=deepseek_config.get("model", "deepseek-chat"),
+                        label="DeepSeek 模型",
+                        info="点击「拉取模型列表」可获取最新可用模型。",
+                        allow_custom_value=True,
                     )
-                    ollama_auto_pull = gr.Checkbox(
-                        label="缺失时自动拉取",
-                        value=False,
-                    )
-                    pull_ollama_btn = gr.Button("拉取模型")
-                    ollama_model_status = gr.Markdown("")
 
                 with gr.Accordion(_I18N["zh"]["acc_parallel"], open=False) as acc_parallel:
                     parallel_translation = gr.Checkbox(
@@ -860,6 +860,10 @@ def build_ui():
 
         # ── Event Binding ──
         process_btn.click(
+            fn=lambda: gr.update(value="⏳ 处理中...", interactive=False),
+            outputs=[process_btn],
+            queue=False,
+        ).then(
             fn=process_video,
             inputs=[
                 video_input,
@@ -886,7 +890,7 @@ def build_ui():
                 sub_position,
                 lang_radio,
             ],
-            outputs=[status_text, mkv_output, srt_output, context_output],
+            outputs=[status_text, mkv_output, srt_output, context_output, process_btn],
         )
         pull_ollama_btn.click(
             fn=pull_ollama_model,
@@ -949,7 +953,7 @@ def build_ui():
                 burn_subs, sub_font_size, sub_position,
                 process_btn, sec_result_md, mkv_output, srt_output, context_output,
                 playback_md_comp, status_text,
-                acc_context, acc_deepseek, acc_openai, acc_anthropic, acc_ollama, acc_parallel,
+                acc_context, acc_ollama, acc_openai, acc_anthropic, acc_deepseek, acc_parallel,
                 acc_subtitle, acc_runtime, acc_ctx_output, acc_playback,
             ],
         )
